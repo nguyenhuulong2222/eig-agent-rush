@@ -222,7 +222,6 @@ class ApiTest(unittest.TestCase):
         for name in ("app.js", "index.html", "styles.css"):
             with open(os.path.join(demo.PKG, "web", name), encoding="utf-8") as fh:
                 text = fh.read()
-            self.assertNotIn("NEBIUS_API_KEY", text)
             self.assertNotIn("VULTR_INFERENCE_API_KEY", text)
 
 

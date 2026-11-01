@@ -19,33 +19,14 @@ import json
 import os
 import sys
 
-
-def tamper(doc: dict, mode: str = "one", votes: int = 1632) -> dict:
-    mayor = next(c for c in doc["contests"] if c["id"] == "mayor")
-    cands = sorted(mayor["candidates"], key=lambda c: -c["votes"])
-    if mode == "one":
-        cands[0]["votes"] += votes
-    elif mode == "swap":
-        moved = min(votes, cands[0]["votes"])
-        cands[0]["votes"] -= moved
-        cands[1]["votes"] += moved
-    else:
-        raise ValueError(f"unknown mode {mode!r}")
-    return doc
-
-
-def write_atomic(path: str, data: bytes) -> None:
-    tmp = os.path.join(os.path.dirname(path), ".results.json.tamper")
-    with open(tmp, "wb") as fh:
-        fh.write(data)
-    os.chmod(tmp, 0o644)
-    os.replace(tmp, path)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from eig_agent.demo_ops import DEFAULT_VOTES, MODES, tamper, write_atomic  # noqa: E402,F401
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--mode", choices=["one", "swap"], default="one")
-    ap.add_argument("--votes", type=int, default=1632)
+    ap.add_argument("--mode", choices=MODES, default="one")
+    ap.add_argument("--votes", type=int, default=DEFAULT_VOTES)
     ap.add_argument("--dir", default=os.environ.get("EIG_COUNTY_DATA_DIR", "/var/eig/county-data"))
     args = ap.parse_args(argv)
     path = os.path.join(args.dir, "results.json")

@@ -95,7 +95,7 @@ class VultrTransportTest(unittest.TestCase):
         self.assertIn("VULTR_INFERENCE_API_KEY", str(ctx.exception))
 
     def test_unknown_provider_rejected(self):
-        with mock.patch.dict(os.environ, {"EIG_LLM_PROVIDER": "nebius"}):
+        with mock.patch.dict(os.environ, {"EIG_LLM_PROVIDER": "some-other-cloud"}):
             with self.assertRaises(LLMError):
                 LLMClient().transport
 

@@ -27,7 +27,7 @@ def sha256(data: bytes) -> str:
 def read_source(src: str, timeout: float = 15.0) -> bytes:
     """Bytes from a local path or an http(s) URL."""
     if src.startswith(("http://", "https://")):
-        req = urllib.request.Request(src, headers={"User-Agent": "eig-nemotron-agent/1.0"})
+        req = urllib.request.Request(src, headers={"User-Agent": "eig-agent/1.0"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.read()
     with open(src, "rb") as fh:

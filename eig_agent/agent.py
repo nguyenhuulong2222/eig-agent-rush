@@ -26,7 +26,7 @@ import time
 import uuid
 from typing import Callable, Optional
 
-from . import config, multilingual, sandbox, triage
+from . import config, demo_ops, multilingual, sandbox, triage
 from .__main__ import CERTIFIED
 from .ledger import Ledger
 from .llm import LLMClient, LLMError, no_progress
@@ -321,13 +321,7 @@ class Agent:
         with open(path, "rb") as fh:
             before = _sha(fh.read())
         cert = self._certified()
-        tmp = os.path.join(self.county_dir, ".results.json.restore")
-        with open(tmp, "wb") as fh:
-            fh.write(cert)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.chmod(tmp, 0o644)
-        os.replace(tmp, path)
+        demo_ops.write_atomic(path, cert)
         return before, _sha(cert)
 
     def approve(self, pid: str, by: str = "official", progress=no_progress) -> dict:
@@ -351,6 +345,45 @@ class Agent:
             prop["status"] = "RESTORED_VERIFIED" if match else "RESTORED_UNVERIFIED"
         return {"kind": "approve", "proposal": dict(prop), "restore": {"before_sha256": before, "after_sha256": after},
                 "verify": verified, "sandbox": _sandbox_summary(run), "calls": []}
+
+    # --- demo controls (judge access) -----------------------------------------------------
+
+    def simulate_tamper(self, mode: str = "one", by: str = "visitor") -> dict:
+        """Play the attacker: change the live results the way scripts/tamper.py does. Logged."""
+        if mode not in demo_ops.MODES:
+            raise ValueError(f"mode must be one of {demo_ops.MODES}")
+        path = os.path.join(self.county_dir, "results.json")
+        with open(path, "rb") as fh:
+            before = fh.read()
+        doc = demo_ops.tamper(json.loads(before), mode)
+        after = (json.dumps(doc, indent=2, ensure_ascii=False) + "\n").encode()
+        demo_ops.write_atomic(path, after)
+        mayor = next(c for c in doc["contests"] if c["id"] == "mayor")
+        out = {"mode": mode, "before_sha256": _sha(before), "after_sha256": _sha(after), "by": by,
+               "mayor": [{"name": c["name"], "votes": c["votes"]} for c in mayor["candidates"]]}
+        self.ledger.append("SIMULATED_TAMPER", {k: out[k] for k in ("mode", "before_sha256", "after_sha256", "by")})
+        return out
+
+    def reset(self, reason: str = "auto") -> Optional[dict]:
+        """Restore the certified results and expire pending proposals. Logged as RESET when it
+        changed anything; a no-op reset writes nothing."""
+        with self.lock:
+            expired = [p["id"] for p in self.proposals.values() if p["status"] == "PENDING_APPROVAL"]
+            for pid in expired:
+                self.proposals[pid]["status"] = "EXPIRED"
+        path = os.path.join(self.county_dir, "results.json")
+        with open(path, "rb") as fh:
+            live = _sha(fh.read())
+        certified = _sha(self._certified())
+        restored = live != certified
+        if restored:
+            self.restore_certified()
+        if not restored and not expired:
+            return None
+        data = {"reason": reason, "restored": restored, "before_sha256": live, "after_sha256": certified,
+                "expired_proposals": expired}
+        self.ledger.append("RESET", data)
+        return data
 
     def list_proposals(self) -> list:
         with self.lock:
