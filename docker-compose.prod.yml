@@ -1,0 +1,40 @@
+# Production overlay for the Vultr VM. deploy.sh writes
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+# into .env, so every `docker compose` / `make` command on the VM includes this file.
+#
+# Adds Caddy as the only public entry point (80/443). Everything else stays as in
+# docker-compose.yml: web is published on 127.0.0.1 only, the orchestrator, socket-proxy and
+# county-site are never published.
+
+services:
+  caddy:
+    image: caddy:2.11.7-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    environment:
+      EIG_HOSTNAME: ${EIG_HOSTNAME:?EIG_HOSTNAME must be set (deploy.sh does it)}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data          # certificates
+      - caddy_config:/config
+    tmpfs: [/tmp]
+    networks: [edge]
+    mem_limit: 128m
+    pids_limit: 128
+    depends_on: [web]
+
+  orchestrator:
+    environment:
+      # browser -> Caddy -> web -> orchestrator: the visitor is 2 entries from the right
+      EIG_TRUSTED_PROXY_HOPS: "2"
+      EIG_GIT_COMMIT: ${EIG_GIT_COMMIT:-unknown}
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}

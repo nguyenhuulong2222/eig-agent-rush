@@ -2,7 +2,7 @@
 # Isolation smoke test against the running stack (`docker compose up -d --build` first).
 # Prints PASS/FAIL per check; exit 1 if any check fails.
 set -u
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 2
 FAIL=0
 pass() { echo "PASS  $1"; }
 fail() { echo "FAIL  $1${2:+  -- $2}"; FAIL=1; }
@@ -12,6 +12,7 @@ expect_fail() { name=$1; svc=$2; shift 2
 expect_ok() { name=$1; svc=$2; shift 2
   if out=$(docker compose exec -T "$svc" "$@" 2>&1); then pass "$name"; else fail "$name" "$out"; fi; }
 py() { echo "import sys, urllib.request as u; $1"; }
+sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum; else shasum -a 256; fi | cut -c1-64; }
 
 echo "== UI script"
 if command -v node >/dev/null 2>&1; then
@@ -51,7 +52,7 @@ case "$code" in 403|503) pass "reject with a wrong token is refused ($code)";; *
 echo "== web: read-only county mirror at /county/"
 code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/county/results.html)
 [ "$code" = 200 ] && pass "mirror serves /county/results.html" || fail "mirror page" "$code"
-mirror=$(curl -s http://127.0.0.1:8000/county/data/results.json | shasum -a 256 | cut -c1-64)
+mirror=$(curl -s http://127.0.0.1:8000/county/data/results.json | sha256)
 origin=$(docker compose exec -T county-site python -c "import hashlib,urllib.request as u;print(hashlib.sha256(u.urlopen('http://127.0.0.1:8080/data/results.json').read()).hexdigest())")
 [ "$mirror" = "$origin" ] && pass "mirror results.json == county-site results.json" || fail "mirror results differ" "$mirror vs $origin"
 csp=$(curl -s -D - -o /dev/null http://127.0.0.1:8000/county/results.html | tr -d '\r' | grep -i '^content-security-policy:')
