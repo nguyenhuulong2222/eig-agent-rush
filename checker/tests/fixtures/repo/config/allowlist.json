@@ -1,0 +1,7 @@
+{
+  "_comment": "Official domains and third-party sources. Widening any list is a WARN and needs code-owner approval. Subdomains of an official domain are allowed.",
+  "official_link_domains": ["kanaloacounty.example"],
+  "script_sources": [],
+  "iframe_sources": [],
+  "lookalike_max_distance": 2
+}

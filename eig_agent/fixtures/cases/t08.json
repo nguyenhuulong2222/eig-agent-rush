@@ -1,0 +1,26 @@
+{
+  "id": "T08",
+  "title": "Self-declared 'certified final' with votes that do not add up",
+  "expected": "tampering",
+  "metadata": {
+    "change_id": "chg-7733",
+    "submitted_by": "unknown",
+    "role": "unknown",
+    "channel": "direct file upload (SFTP)",
+    "submitted_at": "2026-11-04T03:15:44-10:00",
+    "ticket": null,
+    "approvals": [],
+    "commit_message": "final"
+  },
+  "patches": [
+    {
+      "path": "update.status",
+      "value": "certified final"
+    },
+    {
+      "path": "contests[id=mayor].candidates[2].votes",
+      "value": 2954
+    }
+  ],
+  "kind": "tamper_triage"
+}

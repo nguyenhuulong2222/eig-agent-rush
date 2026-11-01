@@ -1,0 +1,30 @@
+{
+  "id": "T04",
+  "title": "Documented canvass correction (transposed digits)",
+  "expected": "legitimate",
+  "metadata": {
+    "change_id": "chg-7802",
+    "submitted_by": "m.alvarez",
+    "role": "results supervisor",
+    "channel": "results portal (two-person approval)",
+    "submitted_at": "2026-11-05T10:20:00-10:00",
+    "ticket": "CORR-2026-102",
+    "ticket_text": "Precinct 17 hand-count audit: Dana Ironwood tally sheet read 271, correct value 244 (transposed digits). Mayor contest only. Approved by the Canvass Board on 2026-11-05.",
+    "approvals": [
+      "m.alvarez",
+      "r.chen (Canvass Board chair)"
+    ],
+    "commit_message": "P17 audit correction, Mayor (CORR-2026-102)"
+  },
+  "patches": [
+    {
+      "path": "contests[id=mayor].candidates[1].votes",
+      "value": 14725
+    },
+    {
+      "path": "contests[id=mayor].total_votes",
+      "value": 33603
+    }
+  ],
+  "kind": "tamper_triage"
+}

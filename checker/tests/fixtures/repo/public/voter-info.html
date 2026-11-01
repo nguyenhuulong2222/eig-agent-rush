@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="robots" content="noindex">
+  <title>Voting information | Kanaloa County Elections (fictional demo)</title>
+  <meta name="description" content="Where to vote, how to register and where to drop off a ballot in fictional Kanaloa County. Demo data.">
+  <link rel="icon" href="seal.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="voter-info">
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <div class="demo-band" role="note">
+    <strong>Fictional demo data.</strong> Kanaloa County does not exist. The links below use the reserved <code>.example</code> domain and go nowhere.
+  </div>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="seal.svg" alt="" width="44" height="44">
+        <span>
+          <span class="brand-name">Kanaloa County Elections</span>
+          <span class="brand-sub">Office of the County Clerk (fictional)</span>
+        </span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="results.html">Election results</a></li>
+          <li><a href="voter-info.html" aria-current="page">Voting information</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <h1>How to vote in Kanaloa County</h1>
+    <p class="lede">Official county services are only ever hosted on <strong>kanaloacounty.example</strong>. If a link takes you anywhere else, it is not from us.</p>
+
+    <section aria-labelledby="where-to-vote">
+      <h2 id="where-to-vote">Where to vote</h2>
+      <ul class="official-links">
+        <li>
+          <a data-official-link="polling-place" href="https://elections.kanaloacounty.example/polling-places">Find your polling place</a>
+          <span class="domain">elections.kanaloacounty.example</span>
+        </li>
+        <li>
+          <a data-official-link="ballot-drop-off" href="https://elections.kanaloacounty.example/drop-boxes">Map of ballot drop boxes</a>
+          <span class="domain">elections.kanaloacounty.example</span>
+        </li>
+      </ul>
+
+      <h3>Ballot drop boxes (open until 7:00 pm on Election Day)</h3>
+      <ul class="dropoff">
+        <li>Kanaloa Civic Center, 100 Harbor Lane, Port Kanaloa</li>
+        <li>Upcountry Library, 42 Ridge Road, Makaiwa</li>
+        <li>Westside Community Hall, 7 Breakwater Street, Leeward Point</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="register">
+      <h2 id="register">Register or check your registration</h2>
+      <ul class="official-links">
+        <li>
+          <a data-official-link="registration" href="https://register.kanaloacounty.example/">Register to vote or update your address</a>
+          <span class="domain">register.kanaloacounty.example</span>
+        </li>
+        <li>
+          <a data-official-link="registration-status" href="https://register.kanaloacounty.example/status">Check your registration status</a>
+          <span class="domain">register.kanaloacounty.example</span>
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="dates">
+      <h2 id="dates">Key dates</h2>
+      <table class="dates">
+        <caption class="visually-hidden">Key dates for the fictional 2026 General Election</caption>
+        <tbody>
+          <tr><th scope="row">Mail ballots sent</th><td>Tuesday, October 13, 2026</td></tr>
+          <tr><th scope="row">Voter service centers open</th><td>Tuesday, October 20, 2026</td></tr>
+          <tr><th scope="row">Election Day</th><td>Tuesday, November 3, 2026, 7:00 am to 7:00 pm</td></tr>
+          <tr><th scope="row">Certification of results</th><td>Tuesday, November 17, 2026</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section aria-labelledby="contact">
+      <h2 id="contact">Contact the elections office</h2>
+      <p>Phone (fictional): <a href="tel:+18085550147">(808) 555-0147</a>. The office never asks for your password, Social Security number or payment by phone, text or email.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Kanaloa County is fictional. This site exists to demonstrate Election Integrity Guard.</p>
+    </div>
+  </footer>
+</body>
+</html>

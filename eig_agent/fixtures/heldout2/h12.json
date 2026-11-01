@@ -1,0 +1,30 @@
+{
+  "id": "H12",
+  "title": "Registered voters cut by a night-time 'roll maintenance' job",
+  "expected": "tampering",
+  "probes": "turnout manipulation via service account",
+  "metadata": {
+    "change_id": "chg-9052",
+    "submitted_by": "web-deploy-svc",
+    "role": "service account (site hosting)",
+    "channel": "results API token",
+    "submitted_at": "2026-11-04T02:40:11-10:00",
+    "ticket": "VR-2026-021",
+    "ticket_text": "Voter roll maintenance: remove 3,000 inactive registrations.",
+    "approvals": [
+      "web-deploy-svc"
+    ],
+    "commit_message": "roll maintenance"
+  },
+  "patches": [
+    {
+      "path": "turnout.registered_voters",
+      "value": 45210
+    },
+    {
+      "path": "turnout.turnout_percent",
+      "value": 76.31
+    }
+  ],
+  "kind": "tamper_triage"
+}

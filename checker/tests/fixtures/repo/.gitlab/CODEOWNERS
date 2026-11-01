@@ -1,0 +1,26 @@
+# Election Integrity Guard — code owners
+#
+# Changes to these paths need approval from a code owner before merge.
+# This is enforced by the protected-branch setting "Require approval from
+# code owners" on `main` (see docs/ui-settings.md).
+#
+# Demo note: this is a solo project, so one account is the code owner for
+# every section. In production each section would map to a separate role
+# (for example, the elections director for results, IT security for headers).
+
+[Official results] @nguyenhuulong2222
+/results/
+
+[Integrity policy and allowlists] @nguyenhuulong2222
+/config/
+
+[Security headers and CSP] @nguyenhuulong2222
+# The CSP is a <meta> tag in every page, because GitLab Pages has no custom headers.
+/public/*.html
+/config/security-policy.json
+
+[Automation and governance] @nguyenhuulong2222
+/.gitlab-ci.yml
+/.gitlab/
+/checker/
+/scripts/

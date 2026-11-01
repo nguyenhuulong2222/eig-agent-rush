@@ -1,0 +1,252 @@
+/* Kanaloa County Elections (FICTIONAL DEMO)
+   No external fonts or inline styles: the CSP is style-src 'self'. */
+
+:root {
+  --paper: #f7f8f6;
+  --surface: #ffffff;
+  --ink: #1f2a2e;
+  --muted: #4a5a5e;
+  --rule: #c9d3d1;
+  --lagoon: #0b6e69;
+  --lagoon-ink: #ffffff;
+  --slate: #5b6e72;
+  --hazard: #f5c518;
+  --hazard-ink: #1a1a1a;
+  --alert: #a4262c;
+  --focus: #1f5fbf;
+
+  --sans: "Avenir Next", Avenir, "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --measure: 68ch;
+  --gutter: clamp(16px, 4vw, 40px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #12191b;
+    --surface: #1b2427;
+    --ink: #e6ecea;
+    --muted: #a9b7b5;
+    --rule: #34423f;
+    --lagoon: #5cc8be;
+    --lagoon-ink: #0b1f1d;
+    --slate: #8fa3a6;
+    --alert: #ff8a80;
+    --focus: #8ab4ff;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+a { color: var(--lagoon); text-underline-offset: 0.18em; }
+a:hover { text-decoration-thickness: 2px; }
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--gutter);
+  top: -100px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0.5rem 0.75rem;
+  z-index: 10;
+}
+.skip-link:focus { top: 0.5rem; }
+
+/* The one loud element: the fictional-data band. */
+.demo-band {
+  background:
+    repeating-linear-gradient(-45deg, var(--hazard-ink) 0 10px, var(--hazard) 10px 20px) left / 22px 100% no-repeat,
+    repeating-linear-gradient(-45deg, var(--hazard-ink) 0 10px, var(--hazard) 10px 20px) right / 22px 100% no-repeat,
+    var(--hazard);
+  color: var(--hazard-ink);
+  padding: 0.55rem calc(22px + var(--gutter));
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+}
+.demo-band strong { font-weight: 800; }
+
+.wrap {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.site-header {
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+.site-header .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 2rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+.brand img { width: 44px; height: 44px; }
+.brand-name { display: block; font-weight: 700; font-size: 1.15rem; line-height: 1.2; }
+.brand-sub { display: block; color: var(--muted); font-size: 0.875rem; }
+
+.site-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.site-nav a {
+  display: inline-block;
+  padding: 0.5rem 0;
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+}
+.site-nav a:hover { border-bottom-color: var(--rule); }
+.site-nav a[aria-current="page"] { border-bottom-color: var(--lagoon); }
+
+main { padding: 2.5rem 0 4rem; }
+
+h1, h2, h3 { line-height: 1.2; margin: 0 0 0.6em; }
+h1 { font-size: clamp(2rem, 5.5vw, 3.25rem); font-weight: 800; letter-spacing: -0.015em; max-width: 20ch; }
+h2 { font-size: clamp(1.35rem, 3vw, 1.75rem); font-weight: 700; }
+h3 { font-size: 1.125rem; font-weight: 700; }
+p, li { max-width: var(--measure); }
+
+.lede { font-size: 1.2rem; color: var(--muted); margin-top: 0; }
+
+/* Home */
+.status {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1px;
+  margin: 2rem 0 3rem;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+.status > div { background: var(--surface); padding: 1.25rem 1.25rem 1.4rem; }
+.status dt { color: var(--muted); font-size: 0.9rem; }
+.status dd { margin: 0.2rem 0 0; font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.tasks { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); padding: 0; list-style: none; }
+.tasks a {
+  display: block;
+  height: 100%;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--rule);
+  border-left: 6px solid var(--lagoon);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+.tasks a:hover { border-color: var(--lagoon); }
+.tasks strong { display: block; font-size: 1.1rem; margin-bottom: 0.2rem; }
+.tasks span { color: var(--muted); }
+
+/* Results */
+.results-meta { color: var(--muted); margin: 0 0 2rem; font-variant-numeric: tabular-nums; }
+.results-meta strong { color: var(--ink); }
+
+.contest {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 1.5rem var(--gutter) 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.contest-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.25rem 1.5rem; align-items: baseline; }
+.contest-head h2 { margin-bottom: 0.25rem; }
+.reporting { color: var(--muted); font-variant-numeric: tabular-nums; margin: 0; }
+
+.reporting-meter {
+  height: 6px;
+  background: var(--rule);
+  margin: 0.75rem 0 1.25rem;
+}
+.reporting-meter span { display: block; height: 100%; background: var(--ink); }
+
+table.tally { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tally caption { text-align: left; color: var(--muted); font-size: 0.9rem; padding-bottom: 0.5rem; }
+.tally th, .tally td { padding: 0.7rem 0; border-top: 1px solid var(--rule); vertical-align: top; }
+.tally thead th { text-align: left; color: var(--muted); font-size: 0.875rem; font-weight: 600; border-top: 0; padding-top: 0; }
+.tally th[scope="row"] { text-align: left; font-weight: 600; padding-right: 1rem; }
+.tally .num { text-align: right; white-space: nowrap; padding-left: 1rem; }
+.tally .share { font-size: 1.5rem; font-weight: 800; line-height: 1.1; }
+.tally tr.leading .share { color: var(--lagoon); }
+.tally .votes { display: block; color: var(--muted); font-size: 0.875rem; }
+
+.bar { display: block; height: 10px; margin-top: 0.45rem; background: var(--rule); }
+.bar span { display: block; height: 100%; background: var(--slate); }
+.leading .bar span { background: var(--lagoon); }
+
+.contest-foot { color: var(--muted); font-size: 0.9rem; margin: 0.75rem 0 0; font-variant-numeric: tabular-nums; }
+
+.notice {
+  border-left: 6px solid var(--alert);
+  background: var(--surface);
+  padding: 1rem 1.25rem;
+}
+
+/* Voter info */
+.official-links { list-style: none; padding: 0; display: grid; gap: 1rem; }
+.official-links li { background: var(--surface); border: 1px solid var(--rule); padding: 1.1rem 1.25rem; max-width: none; }
+.official-links a { font-weight: 700; font-size: 1.1rem; }
+.official-links .domain { display: block; color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
+
+.dates { border-collapse: collapse; width: 100%; max-width: 42rem; }
+.dates th, .dates td { text-align: left; padding: 0.6rem 1rem 0.6rem 0; border-top: 1px solid var(--rule); vertical-align: top; }
+.dates th { font-weight: 600; width: 45%; }
+
+.dropoff { padding-left: 1.2rem; }
+.dropoff li { margin-bottom: 0.6rem; }
+
+section + section { margin-top: 3rem; }
+
+.site-footer { border-top: 1px solid var(--rule); color: var(--muted); font-size: 0.9rem; padding: 2rem 0 3rem; }
+.site-footer p { margin: 0 0 0.5rem; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .bar span, .reporting-meter span { transition: width 600ms ease-out; }
+}
+
+@media (max-width: 30rem) {
+  body { font-size: 1rem; }
+  .tally .share { font-size: 1.25rem; }
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+code { font-size: 0.95em; }

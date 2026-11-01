@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="robots" content="noindex">
+  <title>Election results | Kanaloa County Elections (fictional demo)</title>
+  <meta name="description" content="Unofficial results for the fictional 2026 Kanaloa County General Election. Demo data.">
+  <link rel="icon" href="seal.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body data-page="results">
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <div class="demo-band" role="note">
+    <strong>Fictional demo data.</strong> Kanaloa County does not exist. No real election, candidate or result is shown.
+  </div>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="seal.svg" alt="" width="44" height="44">
+        <span>
+          <span class="brand-name">Kanaloa County Elections</span>
+          <span class="brand-sub">Office of the County Clerk (fictional)</span>
+        </span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="results.html" aria-current="page">Election results</a></li>
+          <li><a href="voter-info.html">Voting information</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <h1>Unofficial results</h1>
+    <p class="results-meta" id="results-meta" aria-live="polite">Loading the latest update…</p>
+
+    <div id="contests"></div>
+
+    <noscript>
+      <p class="notice">Results are drawn from a data file. To read it without JavaScript, open <a href="data/results.json">results.json</a>.</p>
+    </noscript>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Results are unofficial until the county certifies them. Data file: <a href="data/results.json">results.json</a>.</p>
+      <p>Kanaloa County is fictional. This site exists to demonstrate Election Integrity Guard.</p>
+    </div>
+  </footer>
+</body>
+</html>

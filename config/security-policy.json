@@ -1,0 +1,32 @@
+{
+  "_comment": "Required Content Security Policy for every page in public/. GitLab Pages cannot set custom response headers, so the CSP ships as <meta http-equiv=\"Content-Security-Policy\"> in each HTML file. The checker (Phase 3) BLOCKs an MR that removes, or weakens, any directive below.",
+  "csp_delivery": "meta",
+  "required_directives": {
+    "default-src": ["'none'"],
+    "script-src": ["'self'"],
+    "style-src": ["'self'"],
+    "img-src": ["'self'"],
+    "connect-src": ["'self'"],
+    "base-uri": ["'none'"],
+    "form-action": ["'none'"]
+  },
+  "forbidden_source_expressions": [
+    "'unsafe-inline'",
+    "'unsafe-eval'",
+    "'unsafe-hashes'",
+    "'wasm-unsafe-eval'",
+    "*",
+    "data:",
+    "blob:",
+    "http:",
+    "https:"
+  ],
+  "required_meta": {
+    "referrer": "strict-origin-when-cross-origin"
+  },
+  "hsts": {
+    "_comment": "HSTS is a response header and cannot be set on *.gitlab.io from the repository. The monitor job records the live Strict-Transport-Security header instead of enforcing it.",
+    "enforced": false,
+    "monitored": true
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "H10",
+  "title": "Council change behind a vague 'sync' ticket",
+  "expected": "uncertain",
+  "probes": "vague ticket, single approver",
+  "metadata": {
+    "change_id": "chg-9033",
+    "submitted_by": "d.santos",
+    "role": "results data clerk",
+    "channel": "results portal",
+    "submitted_at": "2026-11-05T18:10:00-10:00",
+    "ticket": "DATA-2026-011",
+    "ticket_text": "Sync with county system.",
+    "approvals": [
+      "d.santos"
+    ],
+    "commit_message": "sync"
+  },
+  "patches": [
+    {
+      "path": "turnout.ballots_cast",
+      "value": 34527
+    },
+    {
+      "path": "turnout.turnout_percent",
+      "value": 71.62
+    },
+    {
+      "path": "contests[id=council-d2].candidates[1].votes",
+      "value": 5373
+    },
+    {
+      "path": "contests[id=council-d2].total_votes",
+      "value": 11103
+    }
+  ],
+  "kind": "tamper_triage"
+}

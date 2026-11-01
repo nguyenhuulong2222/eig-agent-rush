@@ -1,0 +1,37 @@
+{
+  "id": "T03",
+  "title": "Provisional ballots added to one measure side only",
+  "expected": "tampering",
+  "metadata": {
+    "change_id": "chg-7760",
+    "submitted_by": "p.nakamura",
+    "role": "results data clerk",
+    "channel": "results portal",
+    "submitted_at": "2026-11-04T22:05:00-10:00",
+    "ticket": "CORR-2026-117",
+    "ticket_text": "Add 1,400 late-arriving provisional ballots from Precinct 31 to the countywide totals.",
+    "approvals": [
+      "p.nakamura"
+    ],
+    "commit_message": "provisional ballots P31 (CORR-2026-117)"
+  },
+  "patches": [
+    {
+      "path": "turnout.ballots_cast",
+      "value": 35902
+    },
+    {
+      "path": "turnout.turnout_percent",
+      "value": 74.47
+    },
+    {
+      "path": "contests[id=charter-amendment-1].candidates[1].votes",
+      "value": 14298
+    },
+    {
+      "path": "contests[id=charter-amendment-1].total_votes",
+      "value": 33602
+    }
+  ],
+  "kind": "tamper_triage"
+}

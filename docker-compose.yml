@@ -1,0 +1,63 @@
+# EIG Sandbox Agent — compose skeleton (M1). Filled in during M3 (sandbox) and M5 (Caddy, deploy).
+#
+# Trust boundaries:
+#   app          orchestrator + web UI. The ONLY component that holds the Vultr Inference key,
+#                talks to Docker, and can write the county site's results (restore after approval).
+#   county-site  fictional Kanaloa County site. Serves results read-only; cannot reach the internet.
+#   sandbox      built here, never started by compose. The orchestrator runs one fresh container
+#                per task (docker run --rm ...) on sandbox_net: no env, no secrets, no internet,
+#                read-only rootfs, can reach only county-site.
+
+name: eig
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    env_file: .env                   # secrets live here only; never passed on to the sandbox
+    environment:
+      EIG_COUNTY_DATA_DIR: /var/eig/county-data
+    volumes:
+      - county_data:/var/eig/county-data      # rw: restore-after-approval writes here
+      - ledger:/var/eig/ledger
+      # M3: Docker access for launching sandbox containers is added here (see M1 report, open decision).
+    networks: [edge, sandbox_net]
+    ports:
+      - "127.0.0.1:8000:8000"        # Caddy (M5) is the only public entry point
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+
+  county-site:
+    build:
+      context: .
+      dockerfile: docker/county-site/Dockerfile
+    volumes:
+      - county_data:/srv/site/data:ro         # ro: the site itself can never rewrite results
+    networks: [sandbox_net]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+
+  sandbox:
+    # Build-only: `docker compose --profile build build sandbox`. Never `up`.
+    image: eig-sandbox:latest
+    build:
+      context: docker/sandbox
+    profiles: [build]
+    network_mode: none
+
+networks:
+  edge: {}                           # app <-> internet (Vultr Inference) and, in M5, Caddy
+  sandbox_net:
+    name: eig_sandbox_net
+    internal: true                   # no route to the internet; only county-site (and app) live here
+
+volumes:
+  county_data: {}                    # seeded from the county-site image on first start
+  ledger: {}

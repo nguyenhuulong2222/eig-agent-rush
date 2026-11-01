@@ -1,0 +1,38 @@
+# Secrets / local env — never committed
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Checker outputs
+eig-report.json
+eig-report.md
+eig-codequality.json
+
+# County site build output (rebuilt from results/ by scripts/build_site.py)
+public/data/
+public/manifest.json
+
+# Runtime state (usage log, per-job sandbox output, ledger on the VM)
+eig_agent/logs/
+var/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.claude/settings.local.json
+
+# Demo video build output
+/video/

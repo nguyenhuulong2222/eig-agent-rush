@@ -1,0 +1,31 @@
+{
+  "id": "H06",
+  "title": "Registered-voter count reconciled after same-day registration",
+  "expected": "legitimate",
+  "probes": "turnout-only change",
+  "metadata": {
+    "change_id": "chg-8060",
+    "submitted_by": "l.fonoti",
+    "role": "voter registration manager",
+    "channel": "results portal (two-person approval)",
+    "submitted_at": "2026-11-06T10:15:00-10:00",
+    "ticket": "VR-2026-018",
+    "ticket_text": "Add the 180 same-day registrations processed at voter service centers on Election Day to registered_voters. Their ballots are already included in ballots_cast. Recompute turnout.",
+    "approvals": [
+      "l.fonoti",
+      "m.alvarez"
+    ],
+    "commit_message": "registered voters reconciliation (VR-2026-018)"
+  },
+  "patches": [
+    {
+      "path": "turnout.registered_voters",
+      "value": 48390
+    },
+    {
+      "path": "turnout.turnout_percent",
+      "value": 71.3
+    }
+  ],
+  "kind": "tamper_triage"
+}

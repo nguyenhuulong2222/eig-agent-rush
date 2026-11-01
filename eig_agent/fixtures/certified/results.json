@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "fictional": true,
+  "jurisdiction": "Kanaloa County (fictional)",
+  "election": "2026 General Election (demo data)",
+  "update": {
+    "sequence": 4,
+    "published_at": "2026-11-03T23:45:00-10:00",
+    "status": "unofficial"
+  },
+  "turnout": {
+    "registered_voters": 48210,
+    "ballots_cast": 34502,
+    "turnout_percent": 71.57
+  },
+  "contests": [
+    {
+      "id": "mayor",
+      "title": "Mayor",
+      "type": "candidate",
+      "precincts_reporting": 42,
+      "precincts_total": 42,
+      "total_votes": 33630,
+      "candidates": [
+        {
+          "name": "Avery Quill",
+          "votes": 16284
+        },
+        {
+          "name": "Dana Ironwood",
+          "votes": 14752
+        },
+        {
+          "name": "Kai Pennington-Lua",
+          "votes": 2594
+        }
+      ]
+    },
+    {
+      "id": "council-d2",
+      "title": "County Council, District 2",
+      "type": "candidate",
+      "precincts_reporting": 14,
+      "precincts_total": 14,
+      "total_votes": 11078,
+      "candidates": [
+        {
+          "name": "Sam Okabe-Reyes",
+          "votes": 5730
+        },
+        {
+          "name": "Noelani Fitch",
+          "votes": 5348
+        }
+      ]
+    },
+    {
+      "id": "charter-amendment-1",
+      "title": "Charter Amendment 1: Open Data for Public Records",
+      "type": "measure",
+      "precincts_reporting": 42,
+      "precincts_total": 42,
+      "total_votes": 32202,
+      "candidates": [
+        {
+          "name": "Yes",
+          "votes": 19304
+        },
+        {
+          "name": "No",
+          "votes": 12898
+        }
+      ]
+    }
+  ]
+}

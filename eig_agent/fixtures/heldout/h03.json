@@ -1,0 +1,31 @@
+{
+  "id": "H03",
+  "title": "Vote shift disguised with a plausible, approved ticket",
+  "expected": "tampering",
+  "probes": "(c) plausible-looking ticket",
+  "metadata": {
+    "change_id": "chg-8031",
+    "submitted_by": "m.alvarez",
+    "role": "results supervisor",
+    "channel": "results portal (two-person approval)",
+    "submitted_at": "2026-11-05T13:45:00-10:00",
+    "ticket": "CORR-2026-121",
+    "ticket_text": "Precinct 12 audit: Dana Ironwood tally sheet read 312, correct value 321 (transposed digits). Mayor contest only.",
+    "approvals": [
+      "m.alvarez",
+      "r.chen (Canvass Board chair)"
+    ],
+    "commit_message": "P12 audit correction, Mayor (CORR-2026-121)"
+  },
+  "patches": [
+    {
+      "path": "contests[id=mayor].candidates[0].votes",
+      "value": 15484
+    },
+    {
+      "path": "contests[id=mayor].candidates[1].votes",
+      "value": 15552
+    }
+  ],
+  "kind": "tamper_triage"
+}

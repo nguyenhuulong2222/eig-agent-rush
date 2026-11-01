@@ -1,0 +1,43 @@
+{
+  "id": "H02",
+  "title": "Late ballots from a precinct whose ballot style has only one measure",
+  "expected": "legitimate",
+  "probes": "(b) one-measure ballot style",
+  "metadata": {
+    "change_id": "chg-8022",
+    "submitted_by": "p.nakamura",
+    "role": "results data clerk",
+    "channel": "results portal (two-person approval)",
+    "submitted_at": "2026-11-05T11:10:00-10:00",
+    "ticket": "CORR-2026-125",
+    "ticket_text": "Precinct 42 (Upland Fire District) uses ballot style 7, which contains only Charter Amendment 1; Mayor and County Council are not on that ballot style. 120 ballots from the precinct drop box were scanned late (2 left the measure blank). Add them to ballots cast and to Charter Amendment 1.",
+    "approvals": [
+      "p.nakamura",
+      "m.alvarez"
+    ],
+    "commit_message": "P42 ballot style 7 late scan (CORR-2026-125)"
+  },
+  "patches": [
+    {
+      "path": "turnout.ballots_cast",
+      "value": 34622
+    },
+    {
+      "path": "turnout.turnout_percent",
+      "value": 71.81
+    },
+    {
+      "path": "contests[id=charter-amendment-1].candidates[0].votes",
+      "value": 19374
+    },
+    {
+      "path": "contests[id=charter-amendment-1].candidates[1].votes",
+      "value": 12946
+    },
+    {
+      "path": "contests[id=charter-amendment-1].total_votes",
+      "value": 32320
+    }
+  ],
+  "kind": "tamper_triage"
+}

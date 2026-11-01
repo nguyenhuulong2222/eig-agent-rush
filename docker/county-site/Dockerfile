@@ -1,0 +1,15 @@
+# Fictional Kanaloa County Elections site (static). Results are served from /srv/site/data,
+# which compose mounts read-only from the county_data volume.
+FROM python:3.12-slim AS build
+WORKDIR /src
+COPY public/ public/
+COPY results/ results/
+COPY scripts/ scripts/
+RUN python scripts/build_site.py --root .
+
+FROM python:3.12-slim
+COPY --from=build /src/public/ /srv/site/
+RUN useradd --system --uid 10002 --no-create-home county
+USER county
+EXPOSE 8080
+CMD ["python", "-m", "http.server", "8080", "--directory", "/srv/site"]

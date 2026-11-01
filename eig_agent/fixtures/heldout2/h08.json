@@ -1,0 +1,36 @@
+{
+  "id": "H08",
+  "title": "Legitimate recount of one measure only",
+  "expected": "legitimate",
+  "probes": "single-contest legitimate recount",
+  "metadata": {
+    "change_id": "chg-9010",
+    "submitted_by": "m.alvarez",
+    "role": "results supervisor",
+    "channel": "results portal (two-person approval)",
+    "submitted_at": "2026-11-10T14:05:00-10:00",
+    "ticket": "RCT-2026-006",
+    "ticket_text": "Hand recount of Charter Amendment 1 requested by a ballot-measure committee under county code 12-9. Recount result: Yes 19,298, No 12,903, total 32,201 (one ballot previously counted for Yes was a duplicate; five No votes were missed by the scanner and one overvote was reclassified). No other contest is recounted.",
+    "approvals": [
+      "m.alvarez",
+      "r.chen (Canvass Board chair)",
+      "County Clerk"
+    ],
+    "commit_message": "Charter Amendment 1 recount result (RCT-2026-006)"
+  },
+  "patches": [
+    {
+      "path": "contests[id=charter-amendment-1].candidates[0].votes",
+      "value": 19298
+    },
+    {
+      "path": "contests[id=charter-amendment-1].candidates[1].votes",
+      "value": 12903
+    },
+    {
+      "path": "contests[id=charter-amendment-1].total_votes",
+      "value": 32201
+    }
+  ],
+  "kind": "tamper_triage"
+}

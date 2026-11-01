@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="robots" content="noindex">
+  <title>Kanaloa County Elections (fictional demo)</title>
+  <meta name="description" content="Fictional demo election website for Kanaloa County, a county that does not exist. Used to demonstrate Election Integrity Guard.">
+  <link rel="icon" href="seal.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body data-page="home">
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <div class="demo-band" role="note">
+    <strong>Fictional demo data.</strong> Kanaloa County does not exist. No real election, candidate or result is shown.
+  </div>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="seal.svg" alt="" width="44" height="44">
+        <span>
+          <span class="brand-name">Kanaloa County Elections</span>
+          <span class="brand-sub">Office of the County Clerk (fictional)</span>
+        </span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="index.html" aria-current="page">Home</a></li>
+          <li><a href="results.html">Election results</a></li>
+          <li><a href="voter-info.html">Voting information</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <h1>2026 General Election</h1>
+    <p class="lede">Tuesday, November 3, 2026. Polls are open 7:00 am to 7:00 pm Hawaiʻi time. Results below are unofficial until the county certifies them.</p>
+
+    <dl class="status" aria-live="polite">
+      <div>
+        <dt>Latest results update</dt>
+        <dd id="status-update">Loading…</dd>
+      </div>
+      <div>
+        <dt>Ballots counted</dt>
+        <dd id="status-ballots">Loading…</dd>
+      </div>
+      <div>
+        <dt>Turnout of registered voters</dt>
+        <dd id="status-turnout">Loading…</dd>
+      </div>
+    </dl>
+
+    <h2>What do you need?</h2>
+    <ul class="tasks">
+      <li>
+        <a href="results.html">
+          <strong>See election results</strong>
+          <span>Every contest, with precincts reporting.</span>
+        </a>
+      </li>
+      <li>
+        <a href="voter-info.html#where-to-vote">
+          <strong>Find where to vote</strong>
+          <span>Polling places and ballot drop boxes.</span>
+        </a>
+      </li>
+      <li>
+        <a href="voter-info.html#register">
+          <strong>Register or check your registration</strong>
+          <span>Same-day registration is available at voter service centers.</span>
+        </a>
+      </li>
+    </ul>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Kanaloa County is fictional. This site exists to demonstrate Election Integrity Guard, a supervised GitLab Duo workflow that reviews every change before it is published.</p>
+      <p>Questions about this demo: open an issue in the <a href="https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43545862/showcase">project repository</a>.</p>
+    </div>
+  </footer>
+</body>
+</html>

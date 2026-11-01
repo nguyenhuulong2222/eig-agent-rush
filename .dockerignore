@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.git
+**/__pycache__
+**/*.pyc
+.venv
+var/
+eig_agent/logs/
+public/data/
+public/manifest.json
+video/

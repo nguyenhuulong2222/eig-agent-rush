@@ -1,0 +1,37 @@
+{
+  "id": "T07",
+  "title": "Small consistent addition with a ticket that cannot be verified",
+  "expected": "uncertain",
+  "metadata": {
+    "change_id": "chg-7790",
+    "submitted_by": "d.santos",
+    "role": "results data clerk",
+    "channel": "results portal",
+    "submitted_at": "2026-11-04T16:40:00-10:00",
+    "ticket": "CORR-2026-109",
+    "ticket_text": "(ticket lookup unavailable: the ticket system did not respond)",
+    "approvals": [
+      "d.santos"
+    ],
+    "commit_message": "late ballots (CORR-2026-109)"
+  },
+  "patches": [
+    {
+      "path": "contests[id=mayor].candidates[1].votes",
+      "value": 14792
+    },
+    {
+      "path": "contests[id=mayor].total_votes",
+      "value": 33670
+    },
+    {
+      "path": "turnout.ballots_cast",
+      "value": 34542
+    },
+    {
+      "path": "turnout.turnout_percent",
+      "value": 71.65
+    }
+  ],
+  "kind": "tamper_triage"
+}

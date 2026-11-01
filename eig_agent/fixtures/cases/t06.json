@@ -1,0 +1,26 @@
+{
+  "id": "T06",
+  "title": "Measure title wording fix that matches its ticket",
+  "expected": "legitimate",
+  "metadata": {
+    "change_id": "chg-7811",
+    "submitted_by": "s.kahale",
+    "role": "communications officer",
+    "channel": "results portal (two-person approval)",
+    "submitted_at": "2026-11-05T09:02:00-10:00",
+    "ticket": "WEB-2026-033",
+    "ticket_text": "Use the ballot wording for Charter Amendment 1: 'Open Data for Public Records Act'. Title only.",
+    "approvals": [
+      "s.kahale",
+      "m.alvarez"
+    ],
+    "commit_message": "Charter Amendment 1 title per ballot wording (WEB-2026-033)"
+  },
+  "patches": [
+    {
+      "path": "contests[id=charter-amendment-1].title",
+      "value": "Charter Amendment 1: Open Data for Public Records Act"
+    }
+  ],
+  "kind": "tamper_triage"
+}

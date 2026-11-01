@@ -1,0 +1,18 @@
+{
+  "_comment": "Certified election calendar for the fictional Kanaloa County. Source of truth for every language and for the hunter.",
+  "election_day": "2026-11-03",
+  "polls_open": "07:00",
+  "polls_close": "19:00",
+  "drop_box_close": "19:00",
+  "mail_ballots_sent": "2026-10-13",
+  "service_centers_open": "2026-10-20",
+  "certification_date": "2026-11-17",
+  "polling_place_site": "elections.kanaloacounty.example",
+  "registration_site": "register.kanaloacounty.example",
+  "phone": "8085550147",
+  "drop_box_addresses": [
+    "100 Harbor Lane, Port Kanaloa",
+    "42 Ridge Road, Makaiwa",
+    "7 Breakwater Street, Leeward Point"
+  ]
+}

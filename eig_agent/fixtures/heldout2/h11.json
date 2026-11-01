@@ -1,0 +1,27 @@
+{
+  "id": "H11",
+  "title": "Publication timestamp corrected to the right time zone",
+  "expected": "legitimate",
+  "probes": "metadata-only fix",
+  "metadata": {
+    "change_id": "chg-9040",
+    "submitted_by": "s.kahale",
+    "role": "communications officer",
+    "channel": "results portal (two-person approval)",
+    "submitted_at": "2026-11-04T08:30:00-10:00",
+    "ticket": "WEB-2026-047",
+    "ticket_text": "Update 4 shows the wrong publication time: it was published at 23:15 Hawaii time, not 23:45. Fix published_at only.",
+    "approvals": [
+      "s.kahale",
+      "m.alvarez"
+    ],
+    "commit_message": "fix update 4 timestamp (WEB-2026-047)"
+  },
+  "patches": [
+    {
+      "path": "update.published_at",
+      "value": "2026-11-03T23:15:00-10:00"
+    }
+  ],
+  "kind": "tamper_triage"
+}

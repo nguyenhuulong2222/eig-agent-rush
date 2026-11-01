@@ -1,0 +1,174 @@
+{
+  "_comment": "Each scenario edits the consistent pages with exact string replacements, so every drift is visible in review. D3-D7 were written and committed before any model run.",
+  "consistent": {
+    "title": "All four languages agree with the certified calendar",
+    "replace": {},
+    "expected": [],
+    "eval_id": "D1"
+  },
+  "drift": {
+    "title": "Three translation drifts that would send voters to the wrong place or time",
+    "replace": {
+      "tl": [
+        [
+          "Martes, Nobyembre 3, 2026, 7:00 ng umaga",
+          "Martes, Nobyembre 4, 2026, 7:00 ng umaga"
+        ]
+      ],
+      "es": [
+        [
+          "de 7:00 a. m. a 7:00 p. m.",
+          "de 7:00 a. m. a 6:00 p. m."
+        ]
+      ],
+      "vi": [
+        [
+          "Tìm địa điểm bỏ phiếu của bạn: elections.kanaloacounty.example",
+          "Tìm địa điểm bỏ phiếu của bạn: elections.kanaloa-county.example"
+        ]
+      ]
+    },
+    "expected": [
+      [
+        "tl",
+        "election_day"
+      ],
+      [
+        "es",
+        "polls_close"
+      ],
+      [
+        "vi",
+        "polling_place_site"
+      ]
+    ],
+    "eval_id": "D2"
+  },
+  "eval-d3": {
+    "eval_id": "D3",
+    "title": "Wrong certification date (vi) and transposed phone digits (es)",
+    "replace": {
+      "vi": [
+        [
+          "ngày 17 tháng 11",
+          "ngày 27 tháng 11"
+        ]
+      ],
+      "es": [
+        [
+          "(808) 555-0147",
+          "(808) 555-0174"
+        ]
+      ]
+    },
+    "expected": [
+      [
+        "vi",
+        "certification_date"
+      ],
+      [
+        "es",
+        "phone"
+      ]
+    ]
+  },
+  "eval-d4": {
+    "eval_id": "D4",
+    "title": "Wrong drop-box address (tl) and early drop-box closing (vi)",
+    "replace": {
+      "tl": [
+        [
+          "42 Ridge Road",
+          "24 Ridge Road"
+        ]
+      ],
+      "vi": [
+        [
+          "mở đến 7:00 tối Ngày",
+          "mở đến 5:00 chiều Ngày"
+        ]
+      ]
+    },
+    "expected": [
+      [
+        "tl",
+        "drop_box_addresses"
+      ],
+      [
+        "vi",
+        "drop_box_close"
+      ]
+    ]
+  },
+  "eval-d5": {
+    "eval_id": "D5",
+    "title": "Same facts, different time formats (normalization trap, no drift)",
+    "replace": {
+      "vi": [
+        [
+          "7:00 tối",
+          "19:00"
+        ]
+      ],
+      "es": [
+        [
+          "7:00 p. m.",
+          "19:00 h"
+        ]
+      ],
+      "tl": [
+        [
+          "7:00 ng gabi",
+          "ika-7 ng gabi"
+        ]
+      ]
+    },
+    "expected": []
+  },
+  "eval-d6": {
+    "eval_id": "D6",
+    "title": "Lookalike registration site (es) and wrong service-center date (tl)",
+    "replace": {
+      "es": [
+        [
+          "register.kanaloacounty.example",
+          "register.kanaloacounty-vote.example"
+        ]
+      ],
+      "tl": [
+        [
+          "Oktubre 20, 2026",
+          "Oktubre 27, 2026"
+        ]
+      ]
+    },
+    "expected": [
+      [
+        "es",
+        "registration_site"
+      ],
+      [
+        "tl",
+        "service_centers_open"
+      ]
+    ]
+  },
+  "eval-d7": {
+    "eval_id": "D7",
+    "title": "The English source page itself is wrong (certification date)",
+    "replace": {
+      "en": [
+        [
+          "Tuesday, November 17, 2026",
+          "Tuesday, November 10, 2026"
+        ]
+      ]
+    },
+    "expected": [
+      [
+        "en",
+        "certification_date"
+      ]
+    ]
+  }
+}

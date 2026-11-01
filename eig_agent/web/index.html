@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nemotron Integrity Agent (fictional demo)</title>
+  <meta name="description" content="NVIDIA Nemotron on Nebius Token Factory guards a fictional county election website.">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <p class="demo-banner">Fictional demo data. Kanaloa County does not exist; every name, number and domain here is invented.</p>
+  <header class="top">
+    <div class="wrap">
+      <h1>Nemotron Integrity Agent</h1>
+      <p class="lede">Guards a county election website. Deterministic checks raise the alarm,
+        <strong>NVIDIA Nemotron</strong> on <strong>Nebius Token Factory</strong> reasons about it,
+        <strong>Tavily</strong> searches the live web, and a person makes the final call.</p>
+      <ul class="routing" id="routing" aria-label="Model routing"></ul>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section aria-labelledby="pick">
+      <h2 id="pick">Pick a scenario</h2>
+      <p class="hint">"Replay" shows a recorded run instantly and costs nothing. "Run live" calls Nemotron
+        (and Tavily) now; it takes 5–30 seconds and is rate-limited.</p>
+      <div id="scenarios" class="grid"><p>Loading scenarios…</p></div>
+    </section>
+
+    <section id="run" class="run" hidden aria-live="polite">
+      <div class="run-head">
+        <h2 id="run-title"></h2>
+        <span id="run-mode" class="pill"></span>
+        <span id="run-timer" class="timer"></span>
+      </div>
+      <ol id="steps" class="steps"></ol>
+      <p id="run-error" class="error" hidden></p>
+      <div id="result"></div>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <p>Source and eval results: see the project README. Keys stay on the server; this page only talks to its own API.
+      Suggested translations are drafts for a human translator. Every "rollback" is a recommendation that notifies a human official.</p>
+  </footer>
+</body>
+</html>

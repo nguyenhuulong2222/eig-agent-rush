@@ -1,0 +1,35 @@
+{
+  "id": "T05",
+  "title": "Results move from unofficial to official after canvass",
+  "expected": "legitimate",
+  "metadata": {
+    "change_id": "chg-7900",
+    "submitted_by": "m.alvarez",
+    "role": "results supervisor",
+    "channel": "results portal (two-person approval)",
+    "submitted_at": "2026-11-12T14:00:00-10:00",
+    "ticket": "CERT-2026-001",
+    "ticket_text": "Canvass complete. Publish update 5 marking results official. No vote counts change.",
+    "approvals": [
+      "m.alvarez",
+      "r.chen (Canvass Board chair)",
+      "County Clerk"
+    ],
+    "commit_message": "Update 5: official results (CERT-2026-001)"
+  },
+  "patches": [
+    {
+      "path": "update.sequence",
+      "value": 5
+    },
+    {
+      "path": "update.status",
+      "value": "official"
+    },
+    {
+      "path": "update.published_at",
+      "value": "2026-11-12T14:00:00-10:00"
+    }
+  ],
+  "kind": "tamper_triage"
+}

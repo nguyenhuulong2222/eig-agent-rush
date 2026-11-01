@@ -1,0 +1,38 @@
+{
+  "id": "H07",
+  "title": "Small change behind a vague 'data refresh' ticket",
+  "expected": "uncertain",
+  "probes": "insufficient evidence",
+  "metadata": {
+    "change_id": "chg-8071",
+    "submitted_by": "d.santos",
+    "role": "results data clerk",
+    "channel": "results portal",
+    "submitted_at": "2026-11-05T17:55:00-10:00",
+    "ticket": "DATA-2026-007",
+    "ticket_text": "Data refresh from the tabulator.",
+    "approvals": [
+      "d.santos"
+    ],
+    "commit_message": "refresh"
+  },
+  "patches": [
+    {
+      "path": "turnout.ballots_cast",
+      "value": 34514
+    },
+    {
+      "path": "turnout.turnout_percent",
+      "value": 71.59
+    },
+    {
+      "path": "contests[id=mayor].candidates[2].votes",
+      "value": 2606
+    },
+    {
+      "path": "contests[id=mayor].total_votes",
+      "value": 33642
+    }
+  ],
+  "kind": "tamper_triage"
+}

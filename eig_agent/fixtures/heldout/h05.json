@@ -1,0 +1,31 @@
+{
+  "id": "H05",
+  "title": "Candidate names swapped under a 'display order' ticket",
+  "expected": "tampering",
+  "probes": "(c) plausible-looking ticket",
+  "metadata": {
+    "change_id": "chg-8052",
+    "submitted_by": "s.kahale",
+    "role": "communications officer",
+    "channel": "results portal (two-person approval)",
+    "submitted_at": "2026-11-05T09:40:00-10:00",
+    "ticket": "WEB-2026-040",
+    "ticket_text": "Show Mayor candidates in alphabetical order by last name on the results page.",
+    "approvals": [
+      "s.kahale",
+      "m.alvarez"
+    ],
+    "commit_message": "alphabetical candidate order (WEB-2026-040)"
+  },
+  "patches": [
+    {
+      "path": "contests[id=mayor].candidates[0].name",
+      "value": "Dana Ironwood"
+    },
+    {
+      "path": "contests[id=mayor].candidates[1].name",
+      "value": "Avery Quill"
+    }
+  ],
+  "kind": "tamper_triage"
+}

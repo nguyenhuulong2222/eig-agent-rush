@@ -1,0 +1,11 @@
+{
+  "_comment": "Integrity checker policy. Paths are relative to the repository root.",
+  "site_dir": "public",
+  "results_file": "results/results.json",
+  "history_dir": "results/history",
+  "anomaly": {
+    "max_share_swing_pp": 5.0
+  },
+  "require_issue_reference": true,
+  "code_owner_paths": ["results/", "config/", "public/*.html", ".gitlab/CODEOWNERS", ".gitlab-ci.yml"]
+}

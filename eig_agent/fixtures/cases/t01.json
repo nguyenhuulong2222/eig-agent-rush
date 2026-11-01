@@ -1,0 +1,26 @@
+{
+  "id": "T01",
+  "title": "Winner flipped by moving votes; totals preserved",
+  "expected": "tampering",
+  "metadata": {
+    "change_id": "chg-7731",
+    "submitted_by": "web-deploy-svc",
+    "role": "service account (site hosting)",
+    "channel": "direct file upload (SFTP), bypassing the results portal",
+    "submitted_at": "2026-11-04T03:12:09-10:00",
+    "ticket": null,
+    "approvals": [],
+    "commit_message": "fix formatting"
+  },
+  "patches": [
+    {
+      "path": "contests[id=mayor].candidates[0].votes",
+      "value": 14652
+    },
+    {
+      "path": "contests[id=mayor].candidates[1].votes",
+      "value": 16384
+    }
+  ],
+  "kind": "tamper_triage"
+}
