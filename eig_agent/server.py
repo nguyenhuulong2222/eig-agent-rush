@@ -9,6 +9,8 @@ served by the web container (eig_agent/web.py), which forwards /api/* here.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -44,6 +46,36 @@ def client_ip(forwarded: str, peer: str, hops: int) -> str:
     return entries[-hops]
 
 
+MIN_TOKEN_LEN = 16
+TOKEN_ENVS = {"approver": "EIG_APPROVER_TOKEN"}
+
+
+def token_id(token: str) -> str:
+    """Short, non-reversible label for the ledger: never the token itself."""
+    return hashlib.sha256(token.encode()).hexdigest()[:10]
+
+
+def authorize(header: str) -> tuple:
+    """(http_status, who). 200 + "role:hash" when the Bearer token matches a configured token.
+
+    Fail closed: with no token configured (or one shorter than MIN_TOKEN_LEN) approvals are
+    disabled (503). Missing/malformed header -> 401, wrong token -> 403. Constant-time compare.
+    """
+    tokens = {role: os.environ.get(env, "") for role, env in TOKEN_ENVS.items()}
+    tokens = {role: tok for role, tok in tokens.items() if len(tok) >= MIN_TOKEN_LEN}
+    if not tokens:
+        return 503, "approvals are disabled: no approver token is configured on the server"
+    scheme, _, given = (header or "").partition(" ")
+    if scheme.lower() != "bearer" or not given.strip():
+        return 401, "an approver token is required (Authorization: Bearer <token>)"
+    given = given.strip().encode()
+    match = None
+    for role, tok in tokens.items():  # check every token so timing does not reveal which one exists
+        if hmac.compare_digest(given, tok.encode()):
+            match = f"{role}:{token_id(tok)}"
+    return (200, match) if match else (403, "that token is not valid")
+
+
 def status() -> dict:
     r = config.routes()
     return {"provider": config.provider(), "base_url": config.base_url() if config.provider() == "vultr" else None,
@@ -60,12 +92,12 @@ class ApiHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # no query strings or bodies in logs
         print(f"{self.command} {urlsplit(self.path).path} -> {args[1] if len(args) > 1 else ''}")
 
-    def send_json(self, status_code: int, payload) -> None:
+    def send_json(self, status_code: int, payload, extra: dict = None) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode()
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        for k, v in SECURITY_HEADERS.items():
+        for k, v in {**SECURITY_HEADERS, **(extra or {})}.items():
             self.send_header(k, v)
         self.end_headers()
         if self.command != "HEAD":
@@ -116,16 +148,20 @@ class ApiHandler(BaseHTTPRequestHandler):
         m = _PROPOSAL.match(path)
         if m:
             pid, verb = m.groups()
+            code, who = authorize(self.headers.get("Authorization", ""))
+            if code != 200:
+                extra = {"WWW-Authenticate": "Bearer"} if code == 401 else None
+                return self.send_json(code, {"error": who}, extra)
             prop = next((p for p in AGENT.list_proposals() if p["id"] == pid), None)
             if prop is None:
                 return self.send_json(404, {"error": "unknown proposal"})
             if prop["status"] != "PENDING_APPROVAL":
                 return self.send_json(409, {"error": f"proposal is {prop['status']}"})
             if verb == "reject":
-                return self.send_json(200, AGENT.reject(pid))
+                return self.send_json(200, AGENT.reject(pid, by=who))
             if JOBS.running() >= demo.MAX_CONCURRENT:
                 return self.send_json(429, {"error": "A run is already in progress. Try again in a few seconds."})
-            return self.send_json(202, JOBS.start("approve", lambda progress: AGENT.approve(pid, progress=progress)))
+            return self.send_json(202, JOBS.start("approve", lambda progress: AGENT.approve(pid, by=who, progress=progress)))
         if path != "/api/run":
             return self.send_json(404, {"error": "not found"})
         sid = body.get("scenario")

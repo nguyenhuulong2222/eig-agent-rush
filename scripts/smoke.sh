@@ -38,6 +38,11 @@ expect_fail "web cannot write its root fs" web sh -c 'echo x > /app/eig_agent/we
 code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/status)
 [ "$code" = 200 ] && pass "web forwards /api to orchestrator (host -> :8000)" || fail "web forwards /api" "$code"
 
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -d '{}' http://127.0.0.1:8000/api/proposals/p000000000000/approve)
+case "$code" in 401|503) pass "approve without a token is refused ($code)";; *) fail "approve without a token" "$code";; esac
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -d '{}' -H 'Authorization: Bearer wrong-token-wrong-token' http://127.0.0.1:8000/api/proposals/p000000000000/reject)  # gitleaks:allow (deliberately invalid)
+case "$code" in 403|503) pass "reject with a wrong token is refused ($code)";; *) fail "reject with a wrong token" "$code";; esac
+
 echo "== orchestrator (private)"
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://127.0.0.1:8001/healthz)
 [ "$code" = 000 ] && pass "orchestrator not published on the host" || fail "orchestrator published on host" "$code"

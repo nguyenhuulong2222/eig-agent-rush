@@ -75,8 +75,11 @@ class WebHandler(BaseHTTPRequestHandler):
             data = self.rfile.read(length)
         prior = self.headers.get("X-Forwarded-For", "")
         chain = f"{prior}, {self.client_address[0]}" if prior else self.client_address[0]
+        headers = {"Content-Type": "application/json", "X-Forwarded-For": chain}
+        if self.headers.get("Authorization"):  # approver token: passed through, never stored or logged here
+            headers["Authorization"] = self.headers["Authorization"][:512]
         req = urllib.request.Request(self.upstream + urlsplit(self.path).path, data=data, method=self.command,
-                                     headers={"Content-Type": "application/json", "X-Forwarded-For": chain})
+                                     headers=headers)
         ctype = "application/json; charset=utf-8"
         try:
             with urllib.request.urlopen(req, timeout=UPSTREAM_TIMEOUT_S) as resp:

@@ -108,7 +108,7 @@ would be a `BREACH`.
 | POST | `/api/tasks` `{"kind": "check"\|"redteam", "goal": "..."}` | start a run (rate-limited, one at a time) → job |
 | GET | `/api/jobs/{id}` | progress and result |
 | GET | `/api/proposals` | proposals and their status |
-| POST | `/api/proposals/{id}/approve` · `/reject` | human decision; approve restores and re-verifies |
+| POST | `/api/proposals/{id}/approve` · `/reject` | human decision, `Authorization: Bearer <EIG_APPROVER_TOKEN>` required (401 missing, 403 wrong, 503 when no token is configured); the ledger records `approver:<sha256 prefix>`, never the token; approve restores and re-verifies |
 | GET | `/api/ledger` | last 100 entries + chain verification |
 | GET | `/api/sandbox/{job}/{file}.png\|.txt` | screenshot / OCR / DOM text a sandbox returned |
 | GET | `/api/status` | provider, models, evidence path, spend vs cap |
@@ -157,7 +157,8 @@ Demo:
 make tamper        # attacker changes one Mayor number on the live site
 make check         # agent run -> seal MISMATCH, RES-003 -> ROLLBACK proposal (job id printed)
 curl -s localhost:8000/api/proposals                                     # find the proposal id
-curl -s -X POST localhost:8000/api/proposals/<id>/approve -d '{}'        # restore + re-verify
+curl -s -X POST localhost:8000/api/proposals/<id>/approve -d '{}' \
+     -H "Authorization: Bearer $EIG_APPROVER_TOKEN"                 # restore + re-verify
 make redteam       # containment drill -> 5 x CONTAINED in the ledger
 make ledger        # entries + verify: ok
 make reset         # put the certified results back (ledger is append-only, untouched)
