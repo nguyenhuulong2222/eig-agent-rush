@@ -1,48 +1,95 @@
-# EIG Sandbox Agent — compose skeleton (M1). Filled in during M3 (sandbox) and M5 (Caddy, deploy).
+# EIG Sandbox Agent — services, networks and trust boundaries.
 #
-# Trust boundaries:
-#   app          orchestrator + web UI. The ONLY component that holds the Vultr Inference key,
-#                talks to Docker, and can write the county site's results (restore after approval).
-#   county-site  fictional Kanaloa County site. Serves results read-only; cannot reach the internet.
-#   sandbox      built here, never started by compose. The orchestrator runs one fresh container
-#                per task (docker run --rm ...) on sandbox_net: no env, no secrets, no internet,
-#                read-only rootfs, can reach only county-site.
+#   web           PUBLIC. Static UI + /api forwarder. No secrets, no Docker, no orchestrator code.
+#   orchestrator  PRIVATE. Holds the Vultr Inference key; rate limits + spend cap; launches sandbox
+#                 containers through socket-proxy; the only writer of the county results (restore
+#                 after human approval).
+#   socket-proxy  PRIVATE. The only holder of the Docker socket. HAProxy allowlist: container
+#                 create/start/stop/kill/wait/inspect/logs/remove + image inspect; create bodies must
+#                 use the eig-sandbox image on eig_sandbox_net with no privileges or host mounts.
+#   county-site   Fictional Kanaloa County site. Internal network only; results mounted read-only.
+#   sandbox       Build-only image. One fresh container per task, created by the orchestrator.
+#
+# Networks (internal = no route to the internet):
+#   edge         web <-> host port (Caddy in M5)
+#   control      internal: web -> orchestrator
+#   egress       orchestrator -> internet (Vultr Inference only consumer)
+#   docker_api   internal: orchestrator -> socket-proxy
+#   sandbox_net  internal: sandbox containers -> county-site
 
 name: eig
 
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  restart: unless-stopped
+
 services:
-  app:
+  web:
+    <<: *hardening
     build:
       context: .
-      dockerfile: docker/app/Dockerfile
-    env_file: .env                   # secrets live here only; never passed on to the sandbox
+      dockerfile: docker/web/Dockerfile
     environment:
-      EIG_COUNTY_DATA_DIR: /var/eig/county-data
-    volumes:
-      - county_data:/var/eig/county-data      # rw: restore-after-approval writes here
-      - ledger:/var/eig/ledger
-      # M3: Docker access for launching sandbox containers is added here (see M1 report, open decision).
-    networks: [edge, sandbox_net]
+      EIG_ORCHESTRATOR_URL: http://orchestrator:8001
+    networks: [edge, control]
     ports:
       - "127.0.0.1:8000:8000"        # Caddy (M5) is the only public entry point
-    read_only: true
     tmpfs: [/tmp]
+    mem_limit: 128m
+    pids_limit: 64
+    depends_on: [orchestrator]
+
+  orchestrator:
+    <<: *hardening
+    build:
+      context: .
+      dockerfile: docker/orchestrator/Dockerfile
+    env_file: .env                   # secrets live here only; never passed on to web or the sandbox
+    environment:
+      DOCKER_HOST: tcp://socket-proxy:2375
+      EIG_COUNTY_DATA_DIR: /var/eig/county-data
+      EIG_JOBS_DIR: /var/eig/jobs
+    volumes:
+      - county_data:/var/eig/county-data      # rw: restore-after-approval writes here
+      - sandbox_out:/var/eig/jobs             # per-job output dirs (sandbox gets only its own subpath)
+      - state:/var/eig/state                  # usage log (spend cap survives restarts)
+      - ledger:/var/eig/ledger
+    networks: [control, egress, docker_api]
+    tmpfs: [/tmp]
+    mem_limit: 512m
+    pids_limit: 128
+    depends_on: [socket-proxy]
+
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
+    read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     restart: unless-stopped
+    environment:
+      DISABLE_IPV6: "1"
+      LOG_LEVEL: info
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/socket-proxy/haproxy.cfg.template:/usr/local/etc/haproxy/haproxy.cfg.template:ro
+    tmpfs: [/tmp, /run]
+    networks: [docker_api]
+    mem_limit: 64m
+    pids_limit: 64
 
   county-site:
+    <<: *hardening
     build:
       context: .
       dockerfile: docker/county-site/Dockerfile
     volumes:
       - county_data:/srv/site/data:ro         # ro: the site itself can never rewrite results
     networks: [sandbox_net]
-    read_only: true
     tmpfs: [/tmp]
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    restart: unless-stopped
+    mem_limit: 128m
+    pids_limit: 64
 
   sandbox:
     # Build-only: `docker compose --profile build build sandbox`. Never `up`.
@@ -52,12 +99,37 @@ services:
     profiles: [build]
     network_mode: none
 
+  test:
+    # Unit tests in the orchestrator image (python:3.12-slim), offline, with no secrets.
+    # Run via scripts/test.sh or `make test`.
+    build:
+      context: .
+      dockerfile: docker/orchestrator/Dockerfile
+    profiles: [test]
+    network_mode: none
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      EIG_LLM_PROVIDER: mock
+      EIG_USAGE_LOG: "off"
+    command: ["python", "-m", "unittest", "discover", "-s", ".", "-t", "."]
+
 networks:
-  edge: {}                           # app <-> internet (Vultr Inference) and, in M5, Caddy
+  edge: {}
+  control:
+    internal: true
+  egress: {}
+  docker_api:
+    internal: true
   sandbox_net:
     name: eig_sandbox_net
-    internal: true                   # no route to the internet; only county-site (and app) live here
+    internal: true
 
 volumes:
   county_data: {}                    # seeded from the county-site image on first start
+  sandbox_out:
+    name: eig_sandbox_out            # the only volume the socket-proxy lets a sandbox mount
+  state: {}
   ledger: {}

@@ -1,6 +1,6 @@
 """Multilingual consistency: FAST extracts, code compares, REASONING explains.
 
-1. FAST (thinking off) reads each language's page and returns the election facts it
+1. FAST reads each language's page and returns the election facts it
    states, normalized, each with a verbatim quote.
 2. Deterministic code re-normalizes the values, checks every quote really appears on
    the page (an extraction the page does not support is never trusted), and compares
@@ -19,7 +19,7 @@ from typing import Optional
 
 from checker.domains import lookalike_of
 
-from .llm import LLMError, NemotronClient, no_progress
+from .llm import LLMError, LLMClient, no_progress
 from .pages import squash, visible_text
 from .schemas import ELECTION_FACTS, FACT_KEYS, MISMATCH_EXPLANATIONS
 
@@ -174,15 +174,15 @@ def compare(lang: str, extracted: dict, text: str, certified: dict) -> list:
 
 # --- model steps ---------------------------------------------------------------------
 
-def extract(client: NemotronClient, text: str, label: str, model: Optional[str] = None):
+def extract(client: LLMClient, text: str, label: str, model: Optional[str] = None):
     return client.complete_json(task=f"extract_facts:{label}", role="fast", system=EXTRACT_SYSTEM,
                                 user="Page text:\n" + text[:MAX_PAGE_CHARS], schema=ELECTION_FACTS,
                                 schema_name="election_facts", model=model)
 
 
-def run(pages: dict, client: Optional[NemotronClient] = None, certified: Optional[dict] = None,
+def run(pages: dict, client: Optional[LLMClient] = None, certified: Optional[dict] = None,
         fast_model: Optional[str] = None, explain: bool = True, progress=no_progress) -> dict:
-    client = client or NemotronClient()
+    client = client or LLMClient()
     certified = certified or load_certified()
     texts = {lang: visible_text(html) for lang, html in pages.items()}
     out = {"languages": {}, "mismatches": [], "explanations": None, "summary": None,

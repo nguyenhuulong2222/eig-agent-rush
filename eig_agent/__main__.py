@@ -1,10 +1,11 @@
-"""CLI for the Nemotron Integrity Agent.
+"""CLI for the EIG Sandbox Agent (orchestrator side).
 
-  python -m eig_agent models                  check configured model ids and prices live
+  python -m eig_agent models [--json]         list Vultr Inference models, flag image input
   python -m eig_agent triage --case ID|PATH   run one tamper-triage fixture end to end
   python -m eig_agent triage --live URL|PATH [--certified PATH] [--meta PATH]
   python -m eig_agent multilingual [--scenario consistent|drift]
-  python -m eig_agent serve [--port 8000]
+  python -m eig_agent orchestrator [--port 8001]  private API (key, limits, sandbox runs)
+  python -m eig_agent web [--port 8000] [--upstream URL]  public UI + /api forwarder (no secrets)
   python -m eig_agent eval [--repeats N] [--suite triage|drift]
   python -m eig_agent record [SCENARIO ...]   save live runs as the demo's recorded runs
 """
@@ -17,7 +18,7 @@ import os
 import sys
 
 from . import config, triage
-from .llm import NemotronClient, load_env
+from .llm import LLMClient, load_env
 
 PKG = os.path.dirname(os.path.abspath(__file__))
 CERTIFIED = os.path.join(PKG, "fixtures", "certified", "results.json")
@@ -46,28 +47,9 @@ def print_calls(calls) -> None:
     print(f"  total estimated cost ${total:.5f}")
 
 
-def cmd_models(_args) -> int:
-    import urllib.request
-    load_env()
-    req = urllib.request.Request(config.BASE_URL + "models?verbose=true",
-                                 headers={"Authorization": "Bearer " + os.environ["NEBIUS_API_KEY"]})
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        live = {m["id"]: m for m in json.load(resp)["data"]}
-    wanted = {**{r.role: r.model for r in config.routes().values()},
-              "fast-candidate-2": config.NANO, "stretch-vl": config.SUPER_VL}
-    ok = True
-    for role, model in wanted.items():
-        m = live.get(model)
-        if not m:
-            ok = False
-            print(f"{role:<16} {model:<40} MISSING")
-            continue
-        price = m.get("pricing", {})
-        p_in, p_out = float(price.get("prompt", 0)), float(price.get("completion", 0))
-        drift = "" if (p_in, p_out) == config.PRICES.get(model) else "  (price differs from config!)"
-        print(f"{role:<16} {model:<40} ${p_in * 1e6:.2f}/M in  ${p_out * 1e6:.2f}/M out  "
-              f"ctx {m.get('context_length')}{drift}")
-    return 0 if ok else 1
+def cmd_models(args) -> int:
+    from .models import main
+    return main(as_json=args.json)
 
 
 def cmd_triage(args) -> int:
@@ -80,7 +62,7 @@ def cmd_triage(args) -> int:
         from .seal import read_source
         live_bytes = read_source(args.live)
         meta = json.load(open(args.meta, encoding="utf-8")) if args.meta else {}
-    out = triage.run(certified_bytes, live_bytes, meta, NemotronClient(), report=not args.no_report, gate=args.gate)
+    out = triage.run(certified_bytes, live_bytes, meta, LLMClient(), report=not args.no_report, gate=args.gate)
     seal = out["seal"]
     if args.json:
         print(json.dumps({**out, "calls": [c.__dict__ for c in out["calls"]]}, indent=2, ensure_ascii=False))
@@ -92,12 +74,12 @@ def cmd_triage(args) -> int:
     for i, t in enumerate(out["votes"]):
         if not t:
             continue
-        print(f"Nemotron verdict #{i + 1}: {t['verdict'].upper()}  confidence {t['confidence']:.2f}  "
+        print(f"Model verdict #{i + 1}: {t['verdict'].upper()}  confidence {t['confidence']:.2f}  "
               f"-> {t['recommended_action']}\n  {t['summary']}")
         for e in t["evidence"] if i == 0 else []:
             print(f"  - ({e['points_to']}) {e['change']}: {e['observation']}")
     if out["triage_error"]:
-        print(f"Nemotron verdict error: {out['triage_error']}")
+        print(f"Model verdict error: {out['triage_error']}")
     d = out["decision"]
     print(f"Gate decision: {d['action']}  ({d['reason']})")
     for r in out["risk_signals"]:
@@ -111,7 +93,7 @@ def cmd_triage(args) -> int:
 
 def cmd_multilingual(args) -> int:
     from . import multilingual
-    out = multilingual.run(multilingual.load_pages(args.scenario), NemotronClient())
+    out = multilingual.run(multilingual.load_pages(args.scenario), LLMClient())
     if args.json:
         print(json.dumps({**out, "calls": [c.__dict__ for c in out["calls"]]}, indent=2, ensure_ascii=False))
         return 0
@@ -154,16 +136,23 @@ def cmd_record(args) -> int:
     return 0
 
 
-def cmd_serve(args) -> int:
+def cmd_orchestrator(args) -> int:
     from .server import serve
     serve(args.port)
+    return 0
+
+
+def cmd_web(args) -> int:
+    from .web import serve
+    serve(args.port, args.upstream)
     return 0
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="python -m eig_agent")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("models", help="check model ids and prices on Token Factory")
+    mo = sub.add_parser("models", help="list Vultr Inference models and image support")
+    mo.add_argument("--json", action="store_true")
     t = sub.add_parser("triage", help="tamper triage of certified vs live results")
     src = t.add_mutually_exclusive_group(required=True)
     src.add_argument("--case", help="fixture id (t01) or path")
@@ -176,8 +165,11 @@ def main(argv=None) -> int:
     m = sub.add_parser("multilingual", help="check en/vi/es/tl pages against the certified calendar")
     m.add_argument("--scenario", default="drift")
     m.add_argument("--json", action="store_true")
-    v = sub.add_parser("serve", help="demo web server")
-    v.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
+    o = sub.add_parser("orchestrator", help="private orchestrator API")
+    o.add_argument("--port", type=int, default=int(os.environ.get("EIG_ORCHESTRATOR_PORT", "8001")))
+    w = sub.add_parser("web", help="public UI + /api forwarder")
+    w.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
+    w.add_argument("--upstream", default=None, help="orchestrator URL (default EIG_ORCHESTRATOR_URL)")
     e = sub.add_parser("eval", help="accuracy, latency and cost per model on the fixtures")
     e.add_argument("--repeats", type=int, default=1)
     e.add_argument("--suite", action="append", choices=["triage", "drift"])
@@ -187,8 +179,9 @@ def main(argv=None) -> int:
     rec = sub.add_parser("record", help="run demo scenarios live and save them as recorded runs")
     rec.add_argument("scenario", nargs="*")
     args = parser.parse_args(argv)
+    load_env()  # before any role or provider is resolved
     return {"models": cmd_models, "eval": cmd_eval, "record": cmd_record, "triage": cmd_triage, "multilingual": cmd_multilingual,
-"serve": cmd_serve}[args.cmd](args)
+"orchestrator": cmd_orchestrator, "web": cmd_web}[args.cmd](args)
 
 
 if __name__ == "__main__":

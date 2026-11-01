@@ -2,7 +2,7 @@
 
 Informational only: the gate never reads them and they are not sent to the triage model,
 so they cannot change a verdict or an eval result. They point a human at the patterns the
-eval showed Nemotron can miss (disguised tampering behind plausible paperwork).
+eval showed the model can miss (disguised tampering behind plausible paperwork).
 """
 
 from __future__ import annotations

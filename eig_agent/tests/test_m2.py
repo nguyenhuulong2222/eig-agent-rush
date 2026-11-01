@@ -4,7 +4,7 @@ import unittest
 os.environ["EIG_USAGE_LOG"] = "off"
 
 from eig_agent import multilingual  # noqa: E402
-from eig_agent.llm import NemotronClient  # noqa: E402
+from eig_agent.llm import LLMClient  # noqa: E402
 from eig_agent.pages import visible_text  # noqa: E402
 from eig_agent.schemas import ELECTION_FACTS, FACT_KEYS, validate  # noqa: E402
 from eig_agent.tests.test_m1 import FakeTransport  # noqa: E402
@@ -69,10 +69,10 @@ class CompareTest(unittest.TestCase):
 class MultilingualRunTest(unittest.TestCase):
     def test_no_explain_call_when_consistent(self):
         fake = FakeTransport(facts())
-        out = multilingual.run({"en": multilingual.load_pages("consistent")["en"]}, NemotronClient(fake))
+        out = multilingual.run({"en": multilingual.load_pages("consistent")["en"]}, LLMClient(fake))
         self.assertEqual(out["mismatches"], [])
         self.assertEqual(len(fake.sent), 1)
-        self.assertFalse(fake.sent[0]["thinking"])
+        self.assertEqual(fake.sent[0]["schema_name"], "election_facts")
 
 
 if __name__ == "__main__":

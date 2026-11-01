@@ -5,7 +5,7 @@
 
 Two suites:
   triage   tamper triage (dev T01-T08, held-out H01-H07, held-out 2 H08-H14), run on the
-           REASONING role with each candidate model, thinking on, through gate v1 (one verdict)
+           REASONING role with each candidate model, through gate v1 (one verdict)
            and/or v2 (two independent verdicts must agree). Scored on the verdict label (v1) and
            on the gate decision (both): tampering -> ROLLBACK, legitimate -> HUMAN_SIGNOFF,
            uncertain -> ESCALATE.
@@ -26,15 +26,17 @@ from concurrent.futures import ThreadPoolExecutor
 
 from . import config, multilingual, triage
 from .__main__ import CASES, CERTIFIED, case_live_bytes, load_case
-from .llm import NemotronClient
+from .llm import LLMClient
 
 PKG = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(PKG, "eval")
 HELDOUT = os.path.join(os.path.dirname(CASES), "heldout")
 SPLITS = {"dev": CASES, "heldout": HELDOUT, "heldout2": os.path.join(os.path.dirname(CASES), "heldout2")}
 EXPECTED_DECISION = {"tampering": "ROLLBACK", "legitimate": "HUMAN_SIGNOFF", "uncertain": "ESCALATE"}
-TRIAGE_MODELS = (config.SUPER, config.LIGHTNING, config.NANO)
-FAST_MODELS = (config.LIGHTNING, config.NANO)
+def _candidates(role: str) -> tuple:
+    """Models to compare: EIG_EVAL_MODELS (comma-separated) or the configured model for the role."""
+    listed = [m.strip() for m in os.environ.get("EIG_EVAL_MODELS", "").split(",") if m.strip()]
+    return tuple(listed) or (config.routes()[role].model,)
 WORKERS = 4
 
 
@@ -51,8 +53,8 @@ def _usage(calls) -> dict:
 def run_triage_case(case: dict, model: str, split: str, repeat: int, gate: str = "v1") -> dict:
     started = time.monotonic()
     cert = open(CERTIFIED, "rb").read()
-    client = NemotronClient(routes={**config.routes(),
-                                    "reasoning": config.Route("reasoning", model, 6000, True)})
+    client = LLMClient(routes={**config.routes(),
+                                    "reasoning": config.Route("reasoning", model, 6000)})
     out = triage.run(cert, case_live_bytes(case, cert), case["metadata"], client, report=False, gate=gate)
     votes = [(v["verdict"], v["confidence"]) if v else ("error", None) for v in out["votes"]]
     decision = out["decision"]["action"]
@@ -67,7 +69,7 @@ def run_triage_case(case: dict, model: str, split: str, repeat: int, gate: str =
 
 def run_drift_case(name: str, spec: dict, model: str, repeat: int) -> dict:
     started = time.monotonic()
-    out = multilingual.run(multilingual.load_pages(name), NemotronClient(), fast_model=model, explain=False)
+    out = multilingual.run(multilingual.load_pages(name), LLMClient(), fast_model=model, explain=False)
     got = sorted({(m["lang"], m["field"]) for m in out["mismatches"]})
     want = sorted({tuple(x) for x in spec["expected"]})
     tp = len(set(got) & set(want))
@@ -171,7 +173,7 @@ def main(repeats: int = 1, suites=("triage", "drift"), splits=("dev", "heldout",
     if "triage" in suites:
         for split in splits:
             for case in _cases(SPLITS[split]):
-                for model in models or TRIAGE_MODELS:
+                for model in models or _candidates("reasoning"):
                     for gate in gates:
                         for rep in range(repeats):
                             jobs.append(lambda c=case, m=model, s=split, r=rep, g=gate: run_triage_case(c, m, s, r, g))
@@ -179,16 +181,20 @@ def main(repeats: int = 1, suites=("triage", "drift"), splits=("dev", "heldout",
         with open(os.path.join(multilingual.I18N, "scenarios.json"), encoding="utf-8") as fh:
             scenarios = {k: v for k, v in json.load(fh).items() if not k.startswith("_") and "eval_id" in v}
         for name, spec in scenarios.items():
-            for model in models or FAST_MODELS:
+            for model in models or _candidates("fast"):
                 for rep in range(repeats):
                     jobs.append(lambda n=name, sp=spec, m=model, r=rep: run_drift_case(n, sp, m, r))
-    NemotronClient().transport  # fail fast on a missing key
+    max_runs = int(os.environ.get("EIG_EVAL_MAX_RUNS", "30"))
+    if config.provider() != "mock" and len(jobs) > max_runs:
+        raise SystemExit(f"eval would start {len(jobs)} paid runs (cap EIG_EVAL_MAX_RUNS={max_runs}); "
+                         "narrow it with --suite/--split/--model/--repeats or raise the cap on purpose")
+    LLMClient().transport  # fail fast on a missing key
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         rows = list(pool.map(lambda job: job(), jobs))
     meta = {"date": dt.date.today().isoformat(), "repeats": repeats, "workers": WORKERS,
             "suites": list(suites), "splits": list(splits), "gates": list(gates),
             "triage_prompt_sha256": hashlib.sha256(triage.TRIAGE_SYSTEM.encode()).hexdigest(),
-            "prices_source": config.PRICES_SOURCE}
+            "provider": config.provider(), "prices_usd_per_token": config.prices()}
     result = {"meta": meta, "summary": summarize(rows), "rows": rows}
     write(result, dt.datetime.now().strftime("%Y%m%d-%H%M%S"))
     return result

@@ -1,6 +1,6 @@
 """JSON schemas for every model output, and a small stdlib validator for them.
 
-The same schema is sent to Token Factory as `response_format: json_schema` and checked
+The same schema is sent to the inference API as `response_format: json_schema` and checked
 again here, because a schema hint is not a guarantee.
 """
 

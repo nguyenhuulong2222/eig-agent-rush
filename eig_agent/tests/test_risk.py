@@ -6,7 +6,7 @@ os.environ["EIG_USAGE_LOG"] = "off"
 
 from eig_agent import risk, triage  # noqa: E402
 from eig_agent.__main__ import CERTIFIED, case_live_bytes, load_case  # noqa: E402
-from eig_agent.llm import NemotronClient  # noqa: E402
+from eig_agent.llm import LLMClient  # noqa: E402
 from eig_agent.seal import compare  # noqa: E402
 from eig_agent.tests.test_m1 import FakeTransport, verdict  # noqa: E402
 
@@ -84,7 +84,7 @@ class IsolationTest(unittest.TestCase):
         case = load_case("t01")
         live = case_live_bytes(case, CERT)
         fake = FakeTransport(verdict("legitimate", 0.95, "human_review"), verdict("legitimate", 0.9, "human_review"))
-        out = triage.run(CERT, live, case["metadata"], NemotronClient(fake), gate="v2")
+        out = triage.run(CERT, live, case["metadata"], LLMClient(fake), gate="v2")
         self.assertTrue(out["risk_signals"])
         self.assertEqual(out["decision"]["action"], "HUMAN_SIGNOFF")  # signals did not change the gate
         for sent in fake.sent:

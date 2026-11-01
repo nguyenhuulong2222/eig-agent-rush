@@ -1,39 +1,30 @@
-"""Demo web server (stdlib http.server). API keys stay in this process; the browser never sees them.
+"""Orchestrator API (stdlib http.server). Private: reachable only from the web container.
 
-  python -m eig_agent serve [--port 8000]
+  python -m eig_agent orchestrator [--port 8001]
+
+This process holds the Vultr Inference key, applies the rate limits and the spend cap, and (from
+M3) launches sandbox containers through the Docker socket proxy. It serves JSON only; the UI is
+served by the web container (eig_agent/web.py), which forwards /api/* here.
 """
 
 from __future__ import annotations
 
-import ipaddress
 import json
 import os
-import posixpath
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
-from . import demo
+from . import config, demo
+from .llm import SPEND
 
-PKG = os.path.dirname(os.path.abspath(__file__))
-WEB = os.path.join(PKG, "web")
-TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
-         ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".json": "application/json"}
-ROBOTS = b"User-agent: *\nDisallow: /\n"
-SECURITY_HEADERS = {
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
-    "X-Frame-Options": "DENY",
-    "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; "
-                               "img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; "
-                               "frame-ancestors 'none'",
-}
-# Render's proxy appends the address it sees to X-Forwarded-For and keeps whatever the client
-# sent before it, so only entries counted from the right are trustworthy. TRUSTED_PROXY_HOPS is
-# the number of trusted proxies in front of this process (checked on Render with /api/whoami).
+# Each proxy in front of this process appends the address it saw to X-Forwarded-For; only entries
+# counted from the right are trustworthy. Dev: browser -> web -> here (1 hop). Prod: browser ->
+# Caddy -> web -> here (2 hops).
 TRUSTED_PROXY_HOPS = int(os.environ.get("EIG_TRUSTED_PROXY_HOPS", "1"))
 JOBS = demo.Jobs()
 LIMITS = demo.Limits()
 MAX_BODY = 2048
+SECURITY_HEADERS = {"X-Content-Type-Options": "nosniff", "Cache-Control": "no-store"}
 
 
 def client_ip(forwarded: str, peer: str, hops: int) -> str:
@@ -48,43 +39,32 @@ def client_ip(forwarded: str, peer: str, hops: int) -> str:
     return entries[-hops]
 
 
-def _mask_private(entry: str) -> str:
-    """Show the caller's public addresses; hide internal proxy addresses."""
-    try:
-        return "private" if ipaddress.ip_address(entry).is_private else entry
-    except ValueError:
-        return "not-an-ip"
+def status() -> dict:
+    r = config.routes()
+    return {"provider": config.provider(), "base_url": config.base_url() if config.provider() == "vultr" else None,
+            "models": {role: r[role].model or None for role in ("reasoning", "vision")},
+            "vision_path": ("mock" if config.provider() == "mock" else
+                            "vision model" if config.has_vision() else "OCR text (no MODEL_VISION)"),
+            "spend": SPEND.status(), "limits": {"daily": LIMITS.daily, "per_ip_hourly": LIMITS.per_ip}}
 
 
-class Handler(BaseHTTPRequestHandler):
-    server_version = "eig-nemotron"
+class ApiHandler(BaseHTTPRequestHandler):
+    server_version = "eig-orchestrator"
     sys_version = ""
 
     def log_message(self, fmt, *args):  # no query strings or bodies in logs
         print(f"{self.command} {urlsplit(self.path).path} -> {args[1] if len(args) > 1 else ''}")
 
-    def send(self, status: int, body: bytes, ctype: str, extra: dict = None) -> None:
-        self.send_response(status)
-        self.send_header("Content-Type", ctype)
+    def send_json(self, status_code: int, payload) -> None:
+        body = json.dumps(payload, ensure_ascii=False).encode()
+        self.send_response(status_code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        for k, v in {**SECURITY_HEADERS, **(extra or {})}.items():
+        for k, v in SECURITY_HEADERS.items():
             self.send_header(k, v)
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
-
-    def static(self, rel: str, extra: dict = None) -> None:
-        rel = posixpath.normpath(rel).lstrip("/")
-        full = os.path.join(WEB, *rel.split("/"))
-        if rel.startswith("..") or not full.startswith(WEB + os.sep) or not os.path.isfile(full):
-            return self.send(404, b"not found\n", "text/plain; charset=utf-8")
-        with open(full, "rb") as fh:
-            body = fh.read()
-        self.send(200, body, TYPES.get(os.path.splitext(full)[1], "application/octet-stream"), extra)
-
-    def send_json(self, status: int, payload) -> None:
-        self.send(status, json.dumps(payload, ensure_ascii=False).encode(), "application/json; charset=utf-8",
-                  {"Cache-Control": "no-store"})
 
     def client_ip(self) -> str:
         return client_ip(self.headers.get("X-Forwarded-For", ""), self.client_address[0], TRUSTED_PROXY_HOPS)
@@ -106,7 +86,7 @@ class Handler(BaseHTTPRequestHandler):
             job = JOBS.recorded_job(sid)
             return self.send_json(200, job) if job else self.send_json(404, {"error": "no recorded run; try a live run"})
         if JOBS.running() >= demo.MAX_CONCURRENT:
-            return self.send_json(429, {"error": "Two live runs are already in progress. Try again in a few seconds."})
+            return self.send_json(429, {"error": "A live run is already in progress. Try again in a few seconds."})
         refusal = LIMITS.take(self.client_ip())
         if refusal:
             return self.send_json(429, {"error": refusal})
@@ -116,30 +96,20 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path == "/api/scenarios":
             return self.send_json(200, {"scenarios": demo.scenario_list(), "routing": demo.routing(),
-                                   "limits": {"daily": LIMITS.daily, "per_ip_hourly": LIMITS.per_ip}})
-        if path == "/api/whoami":  # the caller's own address as the rate limiter sees it
-            entries = [e.strip() for e in self.headers.get("X-Forwarded-For", "").split(",") if e.strip()]
-            return self.send_json(200, {"ip": self.client_ip(), "forwarded_entries": len(entries),
-                                        "chain": [_mask_private(e) for e in entries],
-                                        "trusted_proxy_hops": TRUSTED_PROXY_HOPS})
+                                        "limits": {"daily": LIMITS.daily, "per_ip_hourly": LIMITS.per_ip}})
+        if path == "/api/status":
+            return self.send_json(200, status())
         if path.startswith("/api/jobs/"):
             job = JOBS.get(path[len("/api/jobs/"):])
             return self.send_json(200, job) if job else self.send_json(404, {"error": "unknown job"})
-        if path == "/robots.txt":
-            return self.send(200, ROBOTS, "text/plain; charset=utf-8")
-        if path == "/healthz":  # deploy.sh sets EIG_GIT_COMMIT; it shows which commit is live
-            commit = os.environ.get("EIG_GIT_COMMIT", "local")[:7]
-            return self.send(200, f"ok {commit}\n".encode(), "text/plain; charset=utf-8")
-        if path in ("/", "/index.html"):
-            return self.static("index.html")
-        if path.startswith("/static/"):
-            return self.static(path[len("/static/"):])
-        return self.send(404, b"not found\n", "text/plain; charset=utf-8")
+        if path == "/healthz":
+            return self.send_json(200, {"ok": True, "commit": os.environ.get("EIG_GIT_COMMIT", "local")[:7]})
+        return self.send_json(404, {"error": "not found"})
 
     do_HEAD = do_GET
 
 
-def serve(port: int) -> None:
-    httpd = ThreadingHTTPServer(("0.0.0.0", port), Handler)
-    print(f"Serving on http://0.0.0.0:{port}")
+def serve(port: int, host: str = "0.0.0.0") -> None:
+    httpd = ThreadingHTTPServer((host, port), ApiHandler)
+    print(f"Orchestrator API on http://{host}:{port} (provider: {config.provider()})")
     httpd.serve_forever()

@@ -1,1 +1,1 @@
-"""Nemotron Integrity Agent: Nebius Token Factory + NVIDIA Nemotron on top of the deterministic checker."""
+"""EIG Sandbox Agent: Vultr Serverless Inference explains what the deterministic Results Seal and checker found."""

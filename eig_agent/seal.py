@@ -2,7 +2,7 @@
 
 The SHA-256 of the certified results file is the seal. If the live bytes hash the same,
 nothing happens and no model is called. If they differ, this module produces a
-field-level diff and runs the existing checker rules on the live copy, so Nemotron
+field-level diff and runs the existing checker rules on the live copy, so the model
 reasons over facts that were computed, not guessed.
 """
 

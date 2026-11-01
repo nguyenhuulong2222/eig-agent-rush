@@ -1,0 +1,96 @@
+# EIG policy for tecnativa/docker-socket-proxy (replaces the image's built-in template).
+#
+# The stock image's switches are too coarse: POST=1 applies to every enabled section, so
+# IMAGES=1 would also allow pulls/deletes, and CONTAINERS=1 would allow archive uploads and
+# privileged creates. This template allows only what the orchestrator needs to run one
+# sandbox container per task, and checks the create body.
+#
+# Allowed (optional /v1.xx prefix):
+#   GET  /_ping, /version
+#   POST /containers/create              (body policy below)
+#   POST /containers/{id}/start|stop|kill|wait
+#   GET  /containers/{id}/json|logs, /containers/json
+#   DELETE /containers/{id}
+#   GET  /images/{name}/json             (read-only image inspect)
+# Everything else is denied: exec, build, volumes, networks, images pull/push/delete,
+# archive (copy into a container), commit, swarm, system, plugins, secrets, events, ...
+#
+# Body policy on create is defense in depth, not a JSON parser: the orchestrator builds the
+# spec in code (M3). HAProxy only sees the first tune.bufsize bytes, so large or chunked
+# bodies are refused outright; Go's JSON decoder matches keys case-insensitively and decodes
+# \u escapes, so matching is case-insensitive and any backslash is refused.
+
+global
+    log stdout format raw daemon "${LOG_LEVEL}"
+    pidfile /run/haproxy.pid
+    maxconn 200
+    server-state-file /var/lib/haproxy/server-state
+    tune.bufsize 32768
+
+defaults
+    mode http
+    log global
+    option httplog
+    option dontlognull
+    option http-server-close
+    timeout http-request 10s
+    timeout queue 30s
+    timeout connect 10s
+    timeout client 2m
+    timeout server 2m
+    timeout http-keep-alive 10s
+    maxconn 100
+    load-server-state-from-file global
+
+backend dockerbackend
+    server dockersocket $SOCKET_PATH
+
+frontend dockerfrontend
+    bind ${BIND_CONFIG}
+    option http-buffer-request
+
+    acl ping       path,url_dec -m reg -i ^(/v[0-9.]+)?/_ping$
+    acl version    path,url_dec -m reg -i ^(/v[0-9.]+)?/version$
+    acl c_create   path,url_dec -m reg -i ^(/v[0-9.]+)?/containers/create$
+    acl c_action   path,url_dec -m reg -i ^(/v[0-9.]+)?/containers/[a-zA-Z0-9_.-]+/(start|stop|kill|wait)$
+    acl c_read     path,url_dec -m reg -i ^(/v[0-9.]+)?/containers/([a-zA-Z0-9_.-]+/(json|logs)|json)$
+    acl c_item     path,url_dec -m reg -i ^(/v[0-9.]+)?/containers/[a-zA-Z0-9_.-]+$
+    acl i_inspect  path,url_dec -m reg -i ^(/v[0-9.]+)?/images/[a-zA-Z0-9_.:/@-]+/json$
+
+    # --- create body policy ---
+    acl has_len      req.hdr(content-length) -m found
+    acl body_big     req.hdr_val(content-length) gt 16384
+    acl chunked      req.hdr(transfer-encoding) -m found
+    acl b_escape     req.body -m sub '\'
+    acl b_image_ok   req.body -m reg -i '"image"\s*:\s*"eig-sandbox(:[a-z0-9._-]+)?"'
+    acl b_image_dup  req.body -m reg -i '"image"\s*:[\s\S]*"image"\s*:'
+    acl b_net_ok     req.body -m reg -i '"networkmode"\s*:\s*"eig_sandbox_net"'
+    acl b_net_dup    req.body -m reg -i '"networkmode"\s*:[\s\S]*"networkmode"\s*:'
+    acl b_priv       req.body -m reg -i '"privileged"\s*:\s*true'
+    acl b_capadd     req.body -m reg -i '"capadd"\s*:\s*\[\s*"'
+    acl b_binds      req.body -m reg -i '"binds"\s*:\s*\[\s*"'
+    acl b_bindmount  req.body -m reg -i '"type"\s*:\s*"(bind|npipe|cluster)"'
+    acl b_hostns     req.body -m reg -i '"(pidmode|ipcmode|utsmode|usernsmode|cgroupnsmode|networkmode)"\s*:\s*"(host|container:)'
+    acl b_devices    req.body -m reg -i '"(devices|devicerequests)"\s*:\s*\[\s*\{'
+    acl b_sock       req.body -m sub -i docker.sock
+    acl b_secopt     req.body -m reg -i '(unconfined|apparmor|seccomp|systempaths)'
+    acl b_volfrom    req.body -m reg -i '"volumesfrom"\s*:\s*\[\s*"'
+    acl b_vol_other  req.body -m reg -i '"source"\s*:\s*"(?!eig_sandbox_out")'
+
+    http-request deny deny_status 403 if c_create !has_len || c_create body_big || c_create chunked
+    http-request deny deny_status 403 if c_create b_escape || c_create !b_image_ok || c_create b_image_dup
+    http-request deny deny_status 403 if c_create !b_net_ok || c_create b_net_dup
+    http-request deny deny_status 403 if c_create b_priv || c_create b_capadd || c_create b_binds || c_create b_bindmount
+    http-request deny deny_status 403 if c_create b_hostns || c_create b_devices || c_create b_sock
+    http-request deny deny_status 403 if c_create b_secopt || c_create b_volfrom || c_create b_vol_other
+
+    # --- endpoint allowlist ---
+    http-request allow if ping METH_GET || ping METH_HEAD
+    http-request allow if version METH_GET
+    http-request allow if c_create METH_POST
+    http-request allow if c_action METH_POST
+    http-request allow if c_read METH_GET
+    http-request allow if c_item METH_DELETE
+    http-request allow if i_inspect METH_GET
+    http-request deny deny_status 403
+    default_backend dockerbackend

@@ -19,7 +19,7 @@ from dataclasses import asdict
 
 from . import config, multilingual, triage
 from .__main__ import CERTIFIED, case_live_bytes, load_case
-from .llm import NemotronClient
+from .llm import LLMClient
 from .seal import read_source
 
 PKG = os.path.dirname(os.path.abspath(__file__))
@@ -28,7 +28,7 @@ RECORDED = os.path.join(PKG, "web", "recorded")
 LIVE_RESULTS_URL = os.environ.get("EIG_COUNTY_URL", "http://county-site:8080").rstrip("/") + "/data/results.json"
 DAILY_CAP = int(os.environ.get("EIG_DAILY_LIVE_CAP", "60"))
 IP_HOURLY_CAP = int(os.environ.get("EIG_IP_HOURLY_CAP", "6"))
-MAX_CONCURRENT = 2
+MAX_CONCURRENT = int(os.environ.get("EIG_MAX_CONCURRENT", "1"))  # one sandbox run at a time (4 GB VM)
 
 
 def _short(model: str) -> str:
@@ -54,7 +54,7 @@ def _triage_case(case_id: str):
     def run(progress):
         case = load_case(case_id)
         cert = open(CERTIFIED, "rb").read()
-        out = triage.run(cert, case_live_bytes(case, cert), case["metadata"], NemotronClient(), progress=progress)
+        out = triage.run(cert, case_live_bytes(case, cert), case["metadata"], LLMClient(), progress=progress)
         out["case"] = {k: case[k] for k in ("id", "title", "expected", "metadata")}
         return out
     return run
@@ -63,14 +63,14 @@ def _triage_case(case_id: str):
 def _live_site(progress):
     cert = open(CERTIFIED, "rb").read()
     out = triage.run(cert, read_source(LIVE_RESULTS_URL), {"source": LIVE_RESULTS_URL},
-                     NemotronClient(), progress=progress)
+                     LLMClient(), progress=progress)
     out["case"] = {"id": "LIVE", "title": "Results served right now by the official demo site",
                    "expected": None, "metadata": {"source": LIVE_RESULTS_URL}}
     return out
 
 
 def _translations(progress):
-    out = multilingual.run(multilingual.load_pages("drift"), NemotronClient(), progress=progress)
+    out = multilingual.run(multilingual.load_pages("drift"), LLMClient(), progress=progress)
     out["pages"] = {lang: multilingual.visible_text(html) for lang, html in multilingual.load_pages("drift").items()}
     return out
 
@@ -78,7 +78,7 @@ def _translations(progress):
 SCENARIOS = {
     "live-site": {"feature": "seal", "title": "Check the live election site",
                   "blurb": "Hash the results file the official demo site serves right now and compare it with the "
-                           "certified seal. Nemotron is only called if they differ.", "run": _live_site},
+                           "certified seal. The model is only called if they differ.", "run": _live_site},
     "tamper": {"feature": "seal", "title": "Votes moved, totals kept",
                "blurb": "A service account uploads results where 1,632 votes moved between two candidates. Every "
                         "total still adds up, so arithmetic rules pass.", "run": _triage_case("t01")},

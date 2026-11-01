@@ -6,7 +6,7 @@ os.environ["EIG_USAGE_LOG"] = "off"
 
 from eig_agent import triage  # noqa: E402
 from eig_agent.__main__ import CASES, CERTIFIED, case_live_bytes, load_case  # noqa: E402
-from eig_agent.llm import LLMError, NemotronClient, parse_json  # noqa: E402
+from eig_agent.llm import LLMError, LLMClient, parse_json  # noqa: E402
 from eig_agent.schemas import TAMPER_TRIAGE, validate  # noqa: E402
 from eig_agent.seal import apply_patches, compare, diff, flatten  # noqa: E402
 
@@ -38,7 +38,7 @@ class FakeTransport:
 class SealTest(unittest.TestCase):
     def test_match_needs_no_model(self):
         fake = FakeTransport()
-        out = triage.run(CERT, CERT, {}, NemotronClient(fake), gate="v1")
+        out = triage.run(CERT, CERT, {}, LLMClient(fake), gate="v1")
         self.assertTrue(out["seal"]["match"])
         self.assertEqual(out["decision"]["action"], "NONE")
         self.assertEqual(fake.sent, [])
@@ -75,44 +75,44 @@ class GateTest(unittest.TestCase):
 
     def test_tampering_high_confidence_rolls_back_and_reports(self):
         fake = FakeTransport(verdict(), {"incident_report_md": "## Summary\nx"})
-        out = triage.run(CERT, self.live, {}, NemotronClient(fake), gate="v1")
+        out = triage.run(CERT, self.live, {}, LLMClient(fake), gate="v1")
         self.assertEqual(out["decision"]["action"], "ROLLBACK")
         self.assertEqual(out["incident_report_md"], "## Summary\nx")
-        self.assertEqual([s["thinking"] for s in fake.sent], [True, False])
+        self.assertEqual([s["schema_name"] for s in fake.sent], ["tamper_triage", "incident_report"])
         self.assertEqual(len(out["calls"]), 2)
 
     def test_low_confidence_tampering_escalates_without_report(self):
         fake = FakeTransport(verdict(conf=0.6))
-        out = triage.run(CERT, self.live, {}, NemotronClient(fake), gate="v1")
+        out = triage.run(CERT, self.live, {}, LLMClient(fake), gate="v1")
         self.assertEqual(out["decision"]["action"], "ESCALATE")
         self.assertIsNone(out["incident_report_md"])
         self.assertEqual(len(fake.sent), 1)
 
     def test_uncertain_escalates(self):
         fake = FakeTransport(verdict("uncertain", 0.9, "escalate_to_human"))
-        self.assertEqual(triage.run(CERT, self.live, {}, NemotronClient(fake), gate="v1")["decision"]["action"], "ESCALATE")
+        self.assertEqual(triage.run(CERT, self.live, {}, LLMClient(fake), gate="v1")["decision"]["action"], "ESCALATE")
 
     def test_legitimate_needs_human_signoff(self):
         fake = FakeTransport(verdict("legitimate", 0.95, "human_review"))
-        self.assertEqual(triage.run(CERT, self.live, {}, NemotronClient(fake), gate="v1")["decision"]["action"],
+        self.assertEqual(triage.run(CERT, self.live, {}, LLMClient(fake), gate="v1")["decision"]["action"],
                          "HUMAN_SIGNOFF")
 
     def test_invalid_json_retries_once_then_escalates(self):
         fake = FakeTransport("not json", {"verdict": "maybe"})
-        out = triage.run(CERT, self.live, {}, NemotronClient(fake), gate="v1")
+        out = triage.run(CERT, self.live, {}, LLMClient(fake), gate="v1")
         self.assertEqual(len(fake.sent), 2)
         self.assertEqual(out["decision"]["action"], "ESCALATE")
         self.assertIn("no valid JSON", out["triage_error"])
         self.assertEqual(len(out["calls"]), 2)
 
     def test_transport_error_escalates(self):
-        out = triage.run(CERT, self.live, {}, NemotronClient(FakeTransport(TimeoutError("slow"))), gate="v1")
+        out = triage.run(CERT, self.live, {}, LLMClient(FakeTransport(TimeoutError("slow"))), gate="v1")
         self.assertEqual(out["decision"]["action"], "ESCALATE")
 
     def test_deterministic_block_rolls_back_even_if_model_says_legitimate(self):
         live = case_live_bytes(load_case("t08"), CERT)
         fake = FakeTransport(verdict("legitimate", 0.99, "no_action"), {"incident_report_md": "r"})
-        out = triage.run(CERT, live, {}, NemotronClient(fake), gate="v1")
+        out = triage.run(CERT, live, {}, LLMClient(fake), gate="v1")
         self.assertEqual(out["decision"]["action"], "ROLLBACK")
 
 
@@ -138,7 +138,7 @@ class GateV2Test(unittest.TestCase):
 
     def run_v2(self, *replies):
         fake = FakeTransport(*replies)
-        return triage.run(CERT, self.live, {}, NemotronClient(fake), gate="v2"), fake
+        return triage.run(CERT, self.live, {}, LLMClient(fake), gate="v2"), fake
 
     def test_two_agreeing_tampering_votes_roll_back(self):
         out, fake = self.run_v2(verdict(conf=0.9), verdict(conf=0.85), {"incident_report_md": "r"})
@@ -188,7 +188,7 @@ class ParsingTest(unittest.TestCase):
                 r["finish_reason"] = "length"
                 return r
         with self.assertRaises(LLMError) as ctx:
-            NemotronClient(Cut("{", "{")).complete_json(task="t", role="fast", system="s", user="u",
+            LLMClient(Cut("{", "{")).complete_json(task="t", role="fast", system="s", user="u",
                                                          schema=TAMPER_TRIAGE, schema_name="x")
         self.assertEqual(len(ctx.exception.calls), 2)
 

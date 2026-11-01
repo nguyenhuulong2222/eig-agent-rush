@@ -1,10 +1,10 @@
-"""Tamper triage: the Results Seal triggers, Nemotron classifies and explains, a gate decides.
+"""Tamper triage: the Results Seal triggers, the model classifies and explains, a gate decides.
 
-Gate v2 (default; Nemotron is never the only signal for a rollback):
+Gate v2 (default; the model is never the only signal for a rollback):
 
   seal matches                                           -> NONE        (no model call)
   mismatch + deterministic BLOCK finding                 -> ROLLBACK    (checker rules alone suffice)
-  mismatch + two independent Super verdicts, both
+  mismatch + two independent model verdicts, both
     tampering at confidence >= threshold                 -> ROLLBACK
   mismatch + both verdicts legitimate                    -> HUMAN_SIGNOFF
   mismatch + any disagreement, uncertain verdict, low
@@ -24,7 +24,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 from . import config, risk
-from .llm import LLMError, NemotronClient, no_progress
+from .llm import LLMError, LLMClient, no_progress
 from .schemas import INCIDENT_REPORT, TAMPER_TRIAGE
 from .seal import compare
 
@@ -77,13 +77,13 @@ def decide(seal: dict, triage: Optional[dict]) -> dict:
     verdict, confidence = triage["verdict"], triage["confidence"]
     if verdict == "tampering" and confidence >= config.TAMPER_CONFIDENCE:
         return {"action": "ROLLBACK",
-                "reason": f"Seal mismatch and Nemotron verdict 'tampering' at {confidence:.2f} confidence "
+                "reason": f"Seal mismatch and model verdict 'tampering' at {confidence:.2f} confidence "
                           f"(threshold {config.TAMPER_CONFIDENCE})."}
     if verdict == "legitimate":
         return {"action": "HUMAN_SIGNOFF",
-                "reason": "Nemotron judged the change legitimate; an official must sign off and re-seal."}
+                "reason": "The model judged the change legitimate; an official must sign off and re-seal."}
     return {"action": "ESCALATE",
-            "reason": f"Nemotron verdict '{verdict}' at {confidence:.2f} confidence is not enough to act alone."}
+            "reason": f"model verdict '{verdict}' at {confidence:.2f} confidence is not enough to act alone."}
 
 
 def decide_v2(seal: dict, votes: list) -> dict:
@@ -96,20 +96,20 @@ def decide_v2(seal: dict, votes: list) -> dict:
     labels = [f"{v['verdict']} {v['confidence']:.2f}" for v in votes]
     if all(v["verdict"] == "tampering" and v["confidence"] >= config.TAMPER_CONFIDENCE for v in votes):
         return {"action": "ROLLBACK",
-                "reason": f"Seal mismatch and {len(votes)} independent Nemotron verdicts agree on tampering "
+                "reason": f"Seal mismatch and {len(votes)} independent model verdicts agree on tampering "
                           f"({', '.join(labels)}; threshold {config.TAMPER_CONFIDENCE})."}
     if all(v["verdict"] == "legitimate" for v in votes):
         return {"action": "HUMAN_SIGNOFF",
-                "reason": f"Both Nemotron verdicts say legitimate ({', '.join(labels)}); an official must sign off "
+                "reason": f"Both model verdicts say legitimate ({', '.join(labels)}); an official must sign off "
                           "and re-seal."}
     return {"action": "ESCALATE",
-            "reason": f"Nemotron verdicts do not agree strongly enough to act ({', '.join(labels)})."}
+            "reason": f"model verdicts do not agree strongly enough to act ({', '.join(labels)})."}
 
 
 def run(certified_bytes: bytes, live_bytes: bytes, metadata: dict,
-        client: Optional[NemotronClient] = None, report: bool = True, progress=no_progress,
+        client: Optional[LLMClient] = None, report: bool = True, progress=no_progress,
         gate: str = config.GATE) -> dict:
-    client = client or NemotronClient()
+    client = client or LLMClient()
     progress("seal", "running")
     seal = compare(certified_bytes, live_bytes)
     progress("seal", "done", "match" if seal["match"] else

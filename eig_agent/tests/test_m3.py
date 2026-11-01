@@ -63,19 +63,46 @@ class ClientIpTest(unittest.TestCase):
 
 
 class ApiTest(unittest.TestCase):
+    """Browser -> web container (static + forwarder) -> orchestrator API, both on loopback."""
+
     @classmethod
     def setUpClass(cls):
         from http.server import ThreadingHTTPServer
-        from eig_agent.server import Handler
-        Handler.log_message = lambda *a: None
-        cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        threading.Thread(target=cls.httpd.serve_forever, daemon=True).start()
+        from eig_agent.server import ApiHandler
+        from eig_agent.web import WebHandler
+        ApiHandler.log_message = WebHandler.log_message = lambda *a: None
+        cls.api = ThreadingHTTPServer(("127.0.0.1", 0), ApiHandler)
+        upstream = f"http://127.0.0.1:{cls.api.server_address[1]}"
+        cls.Web = type("Web", (WebHandler,), {"upstream": upstream})
+        cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), cls.Web)
+        for srv in (cls.api, cls.httpd):
+            threading.Thread(target=srv.serve_forever, daemon=True).start()
         cls.base = f"http://127.0.0.1:{cls.httpd.server_address[1]}"
 
     @classmethod
     def tearDownClass(cls):
-        cls.httpd.shutdown()
-        cls.httpd.server_close()
+        for srv in (cls.httpd, cls.api):
+            srv.shutdown()
+            srv.server_close()
+
+    def test_status_reports_mock_provider_and_spend(self):
+        with urllib.request.urlopen(self.base + "/api/status") as resp:
+            data = json.load(resp)
+        self.assertEqual(data["provider"], "mock")
+        self.assertIn("cap_usd", data["spend"])
+
+    def test_web_returns_502_when_orchestrator_is_down(self):
+        from http.server import ThreadingHTTPServer
+        Dead = type("Dead", (self.Web,), {"upstream": "http://127.0.0.1:9"})
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Dead)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                urllib.request.urlopen(f"http://127.0.0.1:{srv.server_address[1]}/api/status")
+            self.assertEqual(ctx.exception.code, 502)
+        finally:
+            srv.shutdown()
+            srv.server_close()
 
     def post(self, body):
         req = urllib.request.Request(self.base + "/api/run", data=json.dumps(body).encode(),
