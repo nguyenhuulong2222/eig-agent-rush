@@ -91,6 +91,36 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(data["provider"], "mock")
         self.assertIn("cap_usd", data["spend"])
 
+    def post_to(self, path, body):
+        req = urllib.request.Request(self.base + path, data=json.dumps(body).encode(),
+                                     headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req) as resp:
+                return resp.status, json.load(resp)
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.load(exc)
+
+    def test_task_kind_is_validated(self):
+        self.assertEqual(self.post_to("/api/tasks", {"kind": "shell", "goal": "x"})[0], 400)
+        self.assertEqual(self.post_to("/api/tasks", {"kind": "check", "goal": ["x"]})[0], 400)
+        self.assertEqual(self.post_to("/api/tasks", ["not", "an", "object"])[0], 400)
+
+    def test_unknown_proposal_and_bad_ids(self):
+        self.assertEqual(self.post_to("/api/proposals/p000000000000/approve", {})[0], 404)
+        self.assertEqual(self.post_to("/api/proposals/../approve", {})[0], 404)
+
+    def test_ledger_endpoint_reports_verification(self):
+        with urllib.request.urlopen(self.base + "/api/ledger") as resp:
+            data = json.load(resp)
+        self.assertIn("ok", data["verify"])
+
+    def test_evidence_files_only_by_strict_name(self):
+        for path in ("/api/sandbox/j0123456789abcdef/../../etc/passwd", "/api/sandbox/x/results_page.png",
+                     "/api/sandbox/j0123456789abcdef/results_page.png"):
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                urllib.request.urlopen(self.base + path)
+            self.assertEqual(ctx.exception.code, 404)
+
     def test_web_returns_502_when_orchestrator_is_down(self):
         from http.server import ThreadingHTTPServer
         Dead = type("Dead", (self.Web,), {"upstream": "http://127.0.0.1:9"})

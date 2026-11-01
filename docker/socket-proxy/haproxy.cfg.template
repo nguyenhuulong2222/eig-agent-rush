@@ -75,6 +75,7 @@ frontend dockerfrontend
     acl b_sock       req.body -m sub -i docker.sock
     acl b_secopt     req.body -m reg -i '(unconfined|apparmor|seccomp|systempaths)'
     acl b_volfrom    req.body -m reg -i '"volumesfrom"\s*:\s*\[\s*"'
+    acl b_dotdot     req.body -m sub ..
     acl b_vol_other  req.body -m reg -i '"source"\s*:\s*"(?!eig_sandbox_out")'
 
     http-request deny deny_status 403 if c_create !has_len || c_create body_big || c_create chunked
@@ -82,7 +83,7 @@ frontend dockerfrontend
     http-request deny deny_status 403 if c_create !b_net_ok || c_create b_net_dup
     http-request deny deny_status 403 if c_create b_priv || c_create b_capadd || c_create b_binds || c_create b_bindmount
     http-request deny deny_status 403 if c_create b_hostns || c_create b_devices || c_create b_sock
-    http-request deny deny_status 403 if c_create b_secopt || c_create b_volfrom || c_create b_vol_other
+    http-request deny deny_status 403 if c_create b_secopt || c_create b_volfrom || c_create b_vol_other || c_create b_dotdot
 
     # --- endpoint allowlist ---
     http-request allow if ping METH_GET || ping METH_HEAD

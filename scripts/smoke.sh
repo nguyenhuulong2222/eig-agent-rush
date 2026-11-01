@@ -51,6 +51,10 @@ if ! docker image inspect eig-sandbox:smoke >/dev/null 2>&1; then
 fi
 docker compose exec -T orchestrator python scripts/smoke_proxy.py || FAIL=1
 
+echo "== real sandbox image: limits from inside, Chromium, timeout, cleanup"
+docker image inspect eig-sandbox:latest >/dev/null 2>&1 || docker compose --profile build build sandbox
+docker compose exec -T orchestrator python scripts/smoke_sandbox.py || FAIL=1
+
 echo
 [ $FAIL = 0 ] && echo "SMOKE: ALL PASS" || echo "SMOKE: FAILURES ABOVE"
 exit $FAIL
