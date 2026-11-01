@@ -1,0 +1,28 @@
+# Public entry point. HTTPS for EIG_HOSTNAME, which deploy.sh sets to
+#   <vm-ip-with-dashes>.sslip.io   (e.g. 203-0-113-7.sslip.io resolves to 203.0.113.7)
+# or to EIG_DOMAIN when you have your own domain. Caddy gets and renews the certificate itself
+# (Let's Encrypt / ZeroSSL over HTTP-01 on port 80). For a local test, EIG_HOSTNAME=localhost
+# makes Caddy use its internal CA instead.
+{
+	admin off
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$EIG_HOSTNAME} {
+	encode zstd gzip
+	# web adds its own CSP and security headers; Caddy adds HSTS and hides itself.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	request_body {
+		max_size 64KB
+	}
+	reverse_proxy web:8000
+	log {
+		output stdout
+		format console
+	}
+}
