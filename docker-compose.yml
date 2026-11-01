@@ -1,6 +1,7 @@
 # EIG Sandbox Agent — services, networks and trust boundaries.
 #
-#   web           PUBLIC. Static UI + /api forwarder. No secrets, no Docker, no orchestrator code.
+#   web           PUBLIC. Static UI + /api forwarder + read-only /county/ mirror (site files and
+#                 results volume mounted :ro). No secrets, no Docker, no orchestrator code.
 #   orchestrator  PRIVATE. Holds the Vultr Inference key; rate limits + spend cap; launches sandbox
 #                 containers through socket-proxy; the only writer of the county results (restore
 #                 after human approval).
@@ -33,6 +34,10 @@ services:
       dockerfile: docker/web/Dockerfile
     environment:
       EIG_ORCHESTRATOR_URL: http://orchestrator:8001
+    volumes:
+      # Read-only mirror of the county site at /county/ (county-site itself stays internal-only).
+      - ./public:/srv/county/public:ro
+      - county_data:/srv/county/data:ro
     networks: [edge, control]
     ports:
       - "127.0.0.1:8000:8000"        # Caddy (M5) is the only public entry point

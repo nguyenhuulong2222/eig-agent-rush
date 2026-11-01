@@ -93,27 +93,6 @@ MISMATCH_EXPLANATIONS = _obj({
     "summary": _STR,
 })
 
-SEARCH_TRIAGE = _obj({
-    "items": {"type": "array", "maxItems": 30, "items": _obj({
-        "id": _STR,
-        "about_county": {"type": "boolean"},  # about the Kanaloa County election at all
-        "category": {"type": "string",
-                     "enum": ["official", "impersonation", "misinformation", "news", "unrelated", "other"]},
-        "reason": _STR,
-    })},
-})
-
-HUNTER_REPORT = _obj({
-    "findings": {"type": "array", "maxItems": 10, "items": _obj({
-        "url": _STR,
-        "risk": {"type": "string", "enum": ["high", "medium", "low"]},
-        "false_claims": {"type": "array", "maxItems": 8, "items": _STR},
-        "lookalike_domains": {"type": "array", "maxItems": 8, "items": _STR},
-        "recommended_action": _STR,
-    })},
-    "report_md": _STR,
-})
-
 # Planner: which county-site pages the sandbox should read. Code validates every path.
 PLAN = _obj({
     "steps": {"type": "array", "maxItems": 10, "items": _obj({

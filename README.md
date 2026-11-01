@@ -101,6 +101,34 @@ variables, DNS and the route out both fail (internal network). The orchestrator 
 none of its own secret values appear anywhere in the sandbox output; if one did, the event
 would be a `BREACH`.
 
+## Web UI and judge access
+
+`http://<host>/` is the agent console: goal input and **Run integrity check**, **Simulate tamper**
+(play the attacker), **Run red-team drill**, a live step log, the screenshot each sandbox took,
+seal MATCH/MISMATCH with the computed diff, the gate decision, **Approve / Reject** with a token
+field, the containment log and the ledger with a chain-verified badge. `http://<host>/county/` is
+a read-only mirror of the fictional county site.
+
+| | |
+|---|---|
+| Console | ![Console](docs/screenshots/m4-1-home.png) |
+| Check after a simulated tamper | ![Rollback proposed](docs/screenshots/m4-2-check-rollback.png) |
+| Approved, restored, re-verified | ![Restored](docs/screenshots/m4-4-approved-restored.png) |
+| Red-team drill (containment moment) | ![All contained](docs/screenshots/m4-5-redteam-contained.png) |
+| Ledger | ![Ledger](docs/screenshots/m4-6-ledger.png) |
+
+- **Two tokens.** `EIG_APPROVER_TOKEN` (the official) and `EIG_DEMO_TOKEN` (published for judges)
+  pass the same checks; the ledger labels them `approver:<hash>` / `demo:<hash>`.
+- **Simulate tamper** (`POST /api/simulate-tamper {"mode": "one"|"swap"}`): rate-limited per IP
+  and per day, refused while a run is active, logged as `SIMULATED_TAMPER by visitor:<salted hash>`
+  (never the IP).
+- **Auto-reset** every `EIG_AUTO_RESET_MIN` (15) minutes: certified results restored, pending
+  proposals expired, logged as `RESET`. It waits while a run is active and writes nothing when
+  there is nothing to reset.
+- **County mirror**: `public/` and the results volume are mounted **read-only** into the web
+  container and served under `/county/` (GET/HEAD only, the county pages' CSP, no traversal).
+  The county-site container stays on the internal network only.
+
 ## API (orchestrator, via the web container)
 
 | Method | Path | |
@@ -111,7 +139,8 @@ would be a `BREACH`.
 | POST | `/api/proposals/{id}/approve` · `/reject` | human decision, `Authorization: Bearer <EIG_APPROVER_TOKEN>` required (401 missing, 403 wrong, 503 when no token is configured); the ledger records `approver:<sha256 prefix>`, never the token; approve restores and re-verifies |
 | GET | `/api/ledger` | last 100 entries + chain verification |
 | GET | `/api/sandbox/{job}/{file}.png\|.txt` | screenshot / OCR / DOM text a sandbox returned |
-| GET | `/api/status` | provider, models, evidence path, spend vs cap |
+| POST | `/api/simulate-tamper` `{"mode": "one"\|"swap"}` | judge-triggered attacker simulation (rate-limited, logged) |
+| GET | `/api/status` | provider, models, evidence path, spend vs cap, approvals enabled, next auto-reset |
 
 ## LLM provider
 
@@ -164,7 +193,7 @@ make ledger        # entries + verify: ok
 make reset         # put the certified results back (ledger is append-only, untouched)
 ```
 
-Status: M3. UI (M4), Vultr deploy (M5) and submission docs (M6) follow.
+Status: M4. Vultr deploy (M5) and submission docs (M6) follow; see [DEPLOY.md](DEPLOY.md) for requirements.
 
 ## License
 

@@ -13,6 +13,11 @@ expect_ok() { name=$1; svc=$2; shift 2
   if out=$(docker compose exec -T "$svc" "$@" 2>&1); then pass "$name"; else fail "$name" "$out"; fi; }
 py() { echo "import sys, urllib.request as u; $1"; }
 
+echo "== UI script"
+if command -v node >/dev/null 2>&1; then
+  if out=$(node --check eig_agent/web/app.js 2>&1); then pass "app.js parses"; else fail "app.js syntax" "$out"; fi
+else echo "SKIP  app.js syntax (node not installed)"; fi
+
 echo "== county-site"
 expect_fail "county-site cannot reach the internet" county-site \
   python -c "$(py "u.urlopen('https://example.com', timeout=5)")"
@@ -42,6 +47,22 @@ code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -d '{}' http://127.0.0.1:8
 case "$code" in 401|503) pass "approve without a token is refused ($code)";; *) fail "approve without a token" "$code";; esac
 code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -d '{}' -H 'Authorization: Bearer wrong-token-wrong-token' http://127.0.0.1:8000/api/proposals/p000000000000/reject)  # gitleaks:allow (deliberately invalid)
 case "$code" in 403|503) pass "reject with a wrong token is refused ($code)";; *) fail "reject with a wrong token" "$code";; esac
+
+echo "== web: read-only county mirror at /county/"
+code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/county/results.html)
+[ "$code" = 200 ] && pass "mirror serves /county/results.html" || fail "mirror page" "$code"
+mirror=$(curl -s http://127.0.0.1:8000/county/data/results.json | shasum -a 256 | cut -c1-64)
+origin=$(docker compose exec -T county-site python -c "import hashlib,urllib.request as u;print(hashlib.sha256(u.urlopen('http://127.0.0.1:8080/data/results.json').read()).hexdigest())")
+[ "$mirror" = "$origin" ] && pass "mirror results.json == county-site results.json" || fail "mirror results differ" "$mirror vs $origin"
+csp=$(curl -s -D - -o /dev/null http://127.0.0.1:8000/county/results.html | tr -d '\r' | grep -i '^content-security-policy:')
+case "$csp" in *"script-src 'self'"*"form-action 'none'"*) pass "mirror sends the county CSP";; *) fail "mirror CSP" "$csp";; esac
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -d x http://127.0.0.1:8000/county/data/results.json)
+[ "$code" = 405 ] && pass "mirror refuses POST (405)" || fail "mirror POST" "$code"
+code=$(curl -s -o /dev/null -w '%{http_code}' --path-as-is http://127.0.0.1:8000/county/../../app/eig_agent/web.py)
+[ "$code" = 404 ] && pass "mirror blocks path traversal" || fail "mirror traversal" "$code"
+expect_fail "web cannot write the mirrored site files" web sh -c 'echo x > /srv/county/public/index.html'
+expect_fail "web cannot write the mirrored results" web sh -c 'echo x > /srv/county/data/results.json'
+expect_ok   "web mounts are read-only" web sh -c 'grep -E " /srv/county/(public|data) " /proc/mounts | grep -vq " rw," && ! grep -E " /srv/county/(public|data) " /proc/mounts | grep -q " rw,"'
 
 echo "== orchestrator (private)"
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://127.0.0.1:8001/healthz)

@@ -14,6 +14,8 @@ import hmac
 import json
 import os
 import re
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
@@ -26,6 +28,8 @@ from .llm import SPEND
 TRUSTED_PROXY_HOPS = int(os.environ.get("EIG_TRUSTED_PROXY_HOPS", "1"))
 JOBS = demo.Jobs()
 LIMITS = demo.Limits()
+TAMPER_LIMITS = demo.Limits(daily=int(os.environ.get("EIG_TAMPER_DAILY_CAP", "100")),
+                            per_ip=int(os.environ.get("EIG_TAMPER_IP_HOURLY_CAP", "6")))
 AGENT = agent.Agent()
 TASK_KINDS = ("check", "redteam")
 _SBX_FILE = re.compile(r"^/api/sandbox/(j[0-9a-f]{16})/([a-z0-9_-]{1,40}\.(png|txt|ocr\.txt))$")
@@ -47,7 +51,9 @@ def client_ip(forwarded: str, peer: str, hops: int) -> str:
 
 
 MIN_TOKEN_LEN = 16
-TOKEN_ENVS = {"approver": "EIG_APPROVER_TOKEN"}
+# approver: the county official. demo: published for judges so they can drive the flow themselves;
+# same checks, its own label in the ledger.
+TOKEN_ENVS = {"approver": "EIG_APPROVER_TOKEN", "demo": "EIG_DEMO_TOKEN"}
 
 
 def token_id(token: str) -> str:
@@ -76,13 +82,61 @@ def authorize(header: str) -> tuple:
     return (200, match) if match else (403, "that token is not valid")
 
 
+def approvals_enabled() -> bool:
+    return any(len(os.environ.get(env, "")) >= MIN_TOKEN_LEN for env in TOKEN_ENVS.values())
+
+
+def visitor_id(ip: str) -> str:
+    """Ledger label for a visitor: a salted hash, never the IP."""
+    salt = os.environ.get("EIG_LEDGER_SALT", "eig")
+    return "visitor:" + hashlib.sha256((salt + ip).encode()).hexdigest()[:10]
+
+
+class AutoReset:
+    """Every EIG_AUTO_RESET_MIN minutes (default 15, 0 = off): restore the certified results and
+    expire pending proposals, so each judge starts from a clean site. Waits while a run is active."""
+
+    def __init__(self, agent_, jobs, minutes: float = None):
+        self.agent, self.jobs = agent_, jobs
+        self.minutes = float(os.environ.get("EIG_AUTO_RESET_MIN", "15")) if minutes is None else minutes
+        self.next_at = time.time() + self.minutes * 60 if self.minutes > 0 else None
+        self.last = None
+
+    def tick(self, now: float = None) -> bool:
+        now = now or time.time()
+        if self.next_at is None or now < self.next_at:
+            return False
+        if self.jobs.running():
+            self.next_at = now + 60  # never reset under a running check or restore
+            return False
+        try:
+            self.last = {"at": now, "result": self.agent.reset("auto")}
+        except OSError as exc:  # county data missing (e.g. local dev): try again next period
+            self.last = {"at": now, "error": str(exc)[:200]}
+        self.next_at = now + self.minutes * 60
+        return True
+
+    def run_forever(self) -> None:
+        while self.next_at is not None:
+            self.tick()
+            time.sleep(15)
+
+
+AUTO_RESET = AutoReset(AGENT, JOBS)
+
+
 def status() -> dict:
     r = config.routes()
     return {"provider": config.provider(), "base_url": config.base_url() if config.provider() == "vultr" else None,
             "models": {role: r[role].model or None for role in ("reasoning", "vision")},
             "vision_path": ("mock" if config.provider() == "mock" else
                             "vision model" if config.has_vision() else "OCR text (no MODEL_VISION)"),
-            "spend": SPEND.status(), "limits": {"daily": LIMITS.daily, "per_ip_hourly": LIMITS.per_ip}}
+            "evidence_path": agent.evidence_path(),
+            "approvals_enabled": approvals_enabled(),
+            "auto_reset": {"every_min": AUTO_RESET.minutes or None, "next_at": AUTO_RESET.next_at},
+            "server_time": time.time(),
+            "spend": SPEND.status(), "limits": {"daily": LIMITS.daily, "per_ip_hourly": LIMITS.per_ip,
+                                                "tamper_per_ip_hourly": TAMPER_LIMITS.per_ip}}
 
 
 class ApiHandler(BaseHTTPRequestHandler):
@@ -145,6 +199,16 @@ class ApiHandler(BaseHTTPRequestHandler):
                 return None
             fn = (lambda progress: AGENT.check(goal[:agent.MAX_GOAL], progress)) if kind == "check" else AGENT.redteam
             return self.send_json(202, JOBS.start(kind, fn))
+        if path == "/api/simulate-tamper":
+            mode = body.get("mode", "one")
+            if mode not in ("one", "swap"):
+                return self.send_json(400, {"error": "mode must be one or swap"})
+            if JOBS.running():
+                return self.send_json(429, {"error": "A run is in progress. Tamper after it finishes."})
+            refusal = TAMPER_LIMITS.take(self.client_ip())
+            if refusal:
+                return self.send_json(429, {"error": refusal.replace("live runs", "simulated tampers")})
+            return self.send_json(200, AGENT.simulate_tamper(mode, by=visitor_id(self.client_ip())))
         m = _PROPOSAL.match(path)
         if m:
             pid, verb = m.groups()
@@ -217,6 +281,8 @@ class ApiHandler(BaseHTTPRequestHandler):
 
 
 def serve(port: int, host: str = "0.0.0.0") -> None:
+    if AUTO_RESET.next_at is not None:
+        threading.Thread(target=AUTO_RESET.run_forever, daemon=True, name="auto-reset").start()
     httpd = ThreadingHTTPServer((host, port), ApiHandler)
     print(f"Orchestrator API on http://{host}:{port} (provider: {config.provider()})")
     httpd.serve_forever()

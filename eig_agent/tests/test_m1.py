@@ -58,7 +58,7 @@ class SealTest(unittest.TestCase):
         self.assertTrue(seal["blocking"])
 
     def test_consistent_tamper_passes_arithmetic(self):
-        # The attacker kept totals consistent: only Nemotron's reasoning can catch T01.
+        # The attacker kept totals consistent: only the model's reasoning can catch T01.
         seal = compare(CERT, case_live_bytes(load_case("t01"), CERT))
         self.assertFalse(seal["blocking"])
 

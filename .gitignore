@@ -36,3 +36,6 @@ var/
 
 # Demo video build output
 /video/
+
+# Playwright MCP scratch output
+.playwright-mcp/

@@ -1,7 +1,7 @@
 # Held-out set 2 (H08–H14): gate v1 vs gate v2
 
 Written and committed **before** any model run. It exists because gate v2 (two independent
-Nemotron Super verdicts; ROLLBACK only if both say tampering at ≥ 0.8; any disagreement →
+model verdicts; ROLLBACK only if both say tampering at ≥ 0.8; any disagreement →
 ESCALATE) was designed after looking at results on H01–H07, so H01–H07 can no longer
 measure v2 fairly. The triage prompt is unchanged (SHA-256 `588f117b…`, see ../heldout/README.md).
 
