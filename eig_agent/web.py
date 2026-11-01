@@ -31,6 +31,9 @@ SECURITY_HEADERS = {
                                "frame-ancestors 'none'",
 }
 MAX_BODY = 2048
+# Upstream content types passed through to the browser (sandbox screenshots and OCR text); anything else
+# is labeled JSON. nosniff is always set, so a mislabeled body is never executed.
+PASS_TYPES = {"image/png": "image/png", "text/plain": "text/plain; charset=utf-8"}
 MAX_UPSTREAM_BYTES = 8 * 1024 * 1024
 UPSTREAM_TIMEOUT_S = 15.0
 
@@ -72,16 +75,21 @@ class WebHandler(BaseHTTPRequestHandler):
             data = self.rfile.read(length)
         prior = self.headers.get("X-Forwarded-For", "")
         chain = f"{prior}, {self.client_address[0]}" if prior else self.client_address[0]
+        headers = {"Content-Type": "application/json", "X-Forwarded-For": chain}
+        if self.headers.get("Authorization"):  # approver token: passed through, never stored or logged here
+            headers["Authorization"] = self.headers["Authorization"][:512]
         req = urllib.request.Request(self.upstream + urlsplit(self.path).path, data=data, method=self.command,
-                                     headers={"Content-Type": "application/json", "X-Forwarded-For": chain})
+                                     headers=headers)
+        ctype = "application/json; charset=utf-8"
         try:
             with urllib.request.urlopen(req, timeout=UPSTREAM_TIMEOUT_S) as resp:
                 status, body = resp.status, resp.read(MAX_UPSTREAM_BYTES)
+                ctype = PASS_TYPES.get(resp.headers.get_content_type(), ctype)
         except urllib.error.HTTPError as exc:
             status, body = exc.code, exc.read(MAX_UPSTREAM_BYTES)
         except (urllib.error.URLError, TimeoutError, ConnectionError):
             status, body = 502, b'{"error": "orchestrator unavailable"}'
-        self.send(status, body, "application/json; charset=utf-8", {"Cache-Control": "no-store"})
+        self.send(status, body, ctype, {"Cache-Control": "no-store"})
 
     def do_POST(self):
         if urlsplit(self.path).path.startswith("/api/"):

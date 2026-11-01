@@ -99,6 +99,25 @@ services:
     profiles: [build]
     network_mode: none
 
+  ops:
+    # Demo operator tools: simulate tampering / reset the live results.
+    #   docker compose run --rm ops python scripts/tamper.py [--mode one|swap]
+    #   docker compose run --rm ops python scripts/reset.py
+    # Writes the county_data volume directly (the attacker's path), never through the agent.
+    build:
+      context: .
+      dockerfile: docker/orchestrator/Dockerfile
+    profiles: [tools]
+    network_mode: none
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      EIG_COUNTY_DATA_DIR: /var/eig/county-data
+    volumes:
+      - county_data:/var/eig/county-data
+
   test:
     # Unit tests in the orchestrator image (python:3.12-slim), offline, with no secrets.
     # Run via scripts/test.sh or `make test`.

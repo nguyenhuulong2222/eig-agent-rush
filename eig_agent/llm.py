@@ -223,6 +223,8 @@ def mock_transport() -> Transport:
             data.update(verdict=v, confidence=0.95 if v != "uncertain" else 0.5,
                         recommended_action={"tampering": "rollback_to_certified", "legitimate": "human_review",
                                             "uncertain": "escalate_to_human"}[v])
+        if schema_name == "evidence_note":  # never let a mock look like a judgment
+            data.update(page_shows_changed_values="unclear", severity="low")
         text = json.dumps(data)
         return {"content": text, "finish_reason": "stop", "prompt_tokens": 0,
                 "completion_tokens": 0, "reasoning_tokens": 0}

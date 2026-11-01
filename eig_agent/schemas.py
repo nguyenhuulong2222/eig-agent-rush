@@ -113,3 +113,20 @@ HUNTER_REPORT = _obj({
     })},
     "report_md": _STR,
 })
+
+# Planner: which county-site pages the sandbox should read. Code validates every path.
+PLAN = _obj({
+    "steps": {"type": "array", "maxItems": 10, "items": _obj({
+        "action": {"type": "string", "enum": ["visit", "fetch"]},
+        "path": _STR,            # site path, e.g. /results.html
+        "screenshot": {"type": "boolean"},
+    })},
+    "rationale": _STR,
+})
+
+# What the screenshot (vision) or its OCR text shows, next to the computed diff.
+EVIDENCE_NOTE = _obj({
+    "page_shows_changed_values": {"type": "string", "enum": ["yes", "no", "unclear"]},
+    "explanation": _STR,          # what a voter looking at the page sees, in plain English
+    "severity": {"type": "string", "enum": ["high", "medium", "low"]},
+})

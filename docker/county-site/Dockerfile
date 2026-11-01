@@ -9,6 +9,9 @@ RUN python scripts/build_site.py --root .
 
 FROM python:3.12-slim
 COPY --from=build /src/public/ /srv/site/
+# The data dir seeds the county_data volume. Owned by the orchestrator's uid (10001) so only the
+# orchestrator can restore results; county-site (uid 10002) mounts the volume read-only anyway.
+RUN chown -R 10001:10001 /srv/site/data
 RUN useradd --system --uid 10002 --no-create-home county
 USER county
 EXPOSE 8080

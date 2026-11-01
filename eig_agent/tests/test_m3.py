@@ -2,10 +2,12 @@ import json
 import os
 import threading
 import unittest
+from unittest import mock
 import urllib.error
 import urllib.request
 
 os.environ["EIG_USAGE_LOG"] = "off"
+TOKEN = "test-approver-token-0123456789"
 
 from eig_agent import demo  # noqa: E402
 from eig_agent.llm import CallRecord  # noqa: E402
@@ -90,6 +92,88 @@ class ApiTest(unittest.TestCase):
             data = json.load(resp)
         self.assertEqual(data["provider"], "mock")
         self.assertIn("cap_usd", data["spend"])
+
+    def post_to(self, path, body, token=None):
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = "Bearer " + token
+        req = urllib.request.Request(self.base + path, data=json.dumps(body).encode(), headers=headers)
+        try:
+            with urllib.request.urlopen(req) as resp:
+                return resp.status, json.load(resp)
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.load(exc)
+
+    def test_task_kind_is_validated(self):
+        self.assertEqual(self.post_to("/api/tasks", {"kind": "shell", "goal": "x"})[0], 400)
+        self.assertEqual(self.post_to("/api/tasks", {"kind": "check", "goal": ["x"]})[0], 400)
+        self.assertEqual(self.post_to("/api/tasks", ["not", "an", "object"])[0], 400)
+
+    def test_unknown_proposal_and_bad_ids(self):
+        with mock.patch.dict(os.environ, {"EIG_APPROVER_TOKEN": TOKEN}):
+            self.assertEqual(self.post_to("/api/proposals/p000000000000/approve", {}, TOKEN)[0], 404)
+            self.assertEqual(self.post_to("/api/proposals/../approve", {}, TOKEN)[0], 404)
+
+    # --- approver authorization (the human-approval gate) ----------------------------------
+
+    def pending(self):
+        """A pending proposal on the server's agent, with the ledger in a temp dir."""
+        import tempfile
+        from eig_agent import server
+        from eig_agent.ledger import Ledger
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(__import__("shutil").rmtree, tmp, True)
+        patcher = mock.patch.object(server.AGENT, "ledger", Ledger(os.path.join(tmp, "ledger.jsonl")))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        pid = "p0123456789ab"
+        server.AGENT.proposals[pid] = {"id": pid, "status": "PENDING_APPROVAL", "created_at": 0}
+        self.addCleanup(server.AGENT.proposals.pop, pid, None)
+        return pid, server.AGENT
+
+    def test_approval_fails_closed_without_a_configured_token(self):
+        pid, ag = self.pending()
+        with mock.patch.dict(os.environ, {"EIG_APPROVER_TOKEN": ""}):
+            self.assertEqual(self.post_to(f"/api/proposals/{pid}/reject", {}, "anything-at-all-123")[0], 503)
+        with mock.patch.dict(os.environ, {"EIG_APPROVER_TOKEN": "short"}):  # too short counts as unset
+            self.assertEqual(self.post_to(f"/api/proposals/{pid}/reject", {}, "short")[0], 503)
+        self.assertEqual(ag.proposals[pid]["status"], "PENDING_APPROVAL")
+
+    def test_missing_token_is_401(self):
+        pid, ag = self.pending()
+        with mock.patch.dict(os.environ, {"EIG_APPROVER_TOKEN": TOKEN}):
+            for verb in ("approve", "reject"):
+                self.assertEqual(self.post_to(f"/api/proposals/{pid}/{verb}", {})[0], 401)
+        self.assertEqual(ag.proposals[pid]["status"], "PENDING_APPROVAL")
+
+    def test_wrong_token_is_403(self):
+        pid, ag = self.pending()
+        with mock.patch.dict(os.environ, {"EIG_APPROVER_TOKEN": TOKEN}):
+            for verb in ("approve", "reject"):
+                self.assertEqual(self.post_to(f"/api/proposals/{pid}/{verb}", {}, TOKEN + "x")[0], 403)
+        self.assertEqual(ag.proposals[pid]["status"], "PENDING_APPROVAL")
+
+    def test_correct_token_decides_and_ledger_gets_only_a_hash(self):
+        pid, ag = self.pending()
+        with mock.patch.dict(os.environ, {"EIG_APPROVER_TOKEN": TOKEN}):
+            status, body = self.post_to(f"/api/proposals/{pid}/reject", {}, TOKEN)
+        self.assertEqual((status, body["status"]), (200, "REJECTED"))
+        entry = ag.ledger.entries()[-1]
+        self.assertEqual(entry["type"], "PROPOSAL_REJECTED")
+        self.assertRegex(entry["data"]["by"], r"^approver:[0-9a-f]{10}$")
+        self.assertNotIn(TOKEN, open(ag.ledger.path).read())
+
+    def test_ledger_endpoint_reports_verification(self):
+        with urllib.request.urlopen(self.base + "/api/ledger") as resp:
+            data = json.load(resp)
+        self.assertIn("ok", data["verify"])
+
+    def test_evidence_files_only_by_strict_name(self):
+        for path in ("/api/sandbox/j0123456789abcdef/../../etc/passwd", "/api/sandbox/x/results_page.png",
+                     "/api/sandbox/j0123456789abcdef/results_page.png"):
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                urllib.request.urlopen(self.base + path)
+            self.assertEqual(ctx.exception.code, 404)
 
     def test_web_returns_502_when_orchestrator_is_down(self):
         from http.server import ThreadingHTTPServer
