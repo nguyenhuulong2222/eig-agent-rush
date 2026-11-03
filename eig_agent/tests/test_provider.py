@@ -125,6 +125,14 @@ class RolesTest(unittest.TestCase):
 
 
 class SpendCapTest(unittest.TestCase):
+    def test_default_cap_is_fifty_cents_until_prices_are_real(self):
+        env = {k: v for k, v in os.environ.items() if k != "EIG_DAILY_SPEND_CAP_USD"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            self.assertEqual(config.daily_spend_cap_usd(), 0.5)
+            self.assertEqual(SpendCap().cap, 0.5)
+        example = open(os.path.join(ROOT, ".env.example"), encoding="utf-8").read()
+        self.assertRegex(example, r"(?m)^EIG_DAILY_SPEND_CAP_USD=0\.50\b")
+
     def test_refuses_before_sending_when_cap_would_be_passed(self):
         fake = FakeTransport(verdict())
         with mock.patch.dict(os.environ, VULTR_ENV):

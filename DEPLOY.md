@@ -131,8 +131,8 @@ sed -i 's/^EIG_DEMO_TOKEN=.*/EIG_DEMO_TOKEN=/' .env && ./deploy.sh
 
 ## Nov 3 checklist (after credits are applied)
 
-Keep model spend tiny while you check: set `EIG_DAILY_SPEND_CAP_USD=0.50` in `.env` until
-pricing is confirmed.
+Keep model spend tiny while you check: `EIG_DAILY_SPEND_CAP_USD=0.50` (the `.env.example` default)
+stays until the real per-token prices are set in step 5.
 
 1. **Apply the credits** in the Vultr console (Billing).
 2. **Create a Serverless Inference API key** (Products → Serverless Inference). Put it in the
@@ -144,9 +144,11 @@ pricing is confirmed.
    Pick `MODEL_REASONING` (and `MODEL_VISION` if any model takes images) and set them in `.env`.
 4. **Choose the evidence path**: `EIG_EVIDENCE_PATH=vision` if a vision model exists, else `ocr`.
    Both are in the sandbox image, so this is config only.
-5. **Read Vultr's real pricing** (per token or subscription) and set `EIG_PRICE_IN_PER_MTOK`,
-   `EIG_PRICE_OUT_PER_MTOK` and `EIG_DAILY_SPEND_CAP_USD`. If it is a subscription, keep the cap
-   as a request budget (the estimate still limits worst-case usage).
+5. **Set the real prices.** Vultr Serverless Inference is usage-billed **per model, per token**
+   (no monthly fee; months under $1.00 are not charged). Look up the chosen model's input and
+   output price on Vultr's model pricing page and replace the placeholders `EIG_PRICE_IN_PER_MTOK`
+   / `EIG_PRICE_OUT_PER_MTOK` (USD per 1M tokens). Keep `EIG_DAILY_SPEND_CAP_USD=0.50` until then;
+   raise it only on purpose afterwards.
 6. **Switch the provider**: `EIG_LLM_PROVIDER=vultr`, then `docker compose up -d orchestrator`.
    If the model rejects `json_schema`, set `EIG_RESPONSE_FORMAT=json_object` (or `none`).
 7. **Five capped live runs** (each is rate-limited and counted against the spend cap):
