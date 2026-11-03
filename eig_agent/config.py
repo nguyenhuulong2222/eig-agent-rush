@@ -87,12 +87,13 @@ def _float_env(name: str, default: float) -> float:
 
 def prices() -> tuple:
     """(USD per prompt token, USD per completion token). Conservative defaults until the
-    real Vultr price is confirmed; set EIG_PRICE_*_PER_MTOK to the published numbers."""
+    real Vultr price is confirmed. Vultr Serverless Inference bills per model, per token: set
+    EIG_PRICE_*_PER_MTOK to the chosen model's numbers from Vultr's model pricing page."""
     return (_float_env("EIG_PRICE_IN_PER_MTOK", 1.0) / 1e6, _float_env("EIG_PRICE_OUT_PER_MTOK", 3.0) / 1e6)
 
 
 def daily_spend_cap_usd() -> float:
-    return _float_env("EIG_DAILY_SPEND_CAP_USD", 2.0)
+    return _float_env("EIG_DAILY_SPEND_CAP_USD", 0.5)
 
 
 def cost_usd(model: str, prompt_tokens: int, completion_tokens: int) -> float:
