@@ -9,8 +9,9 @@ API policy) → one throwaway sandbox container per task → county-site (intern
 
 ## Requirements
 
-- **Ubuntu 24.04 LTS x64** VM, **4 GB RAM** plan, SSH key login. `deploy.sh` adds a **4 GB swap
-  file** if there is none (Chromium in the sandbox can use its full 1 GiB while the rest runs).
+- **Ubuntu 24.04 LTS x64** VM with SSH key login. **Deployed on `vx1-g-2c-8g-120s`** (2 vCPU,
+  8 GB RAM, 120 GB local NVMe, Silicon Valley); 4 GB RAM is the minimum. `deploy.sh` adds a
+  **4 GB swap file** if there is none (Chromium in the sandbox can use its full 1 GiB).
 - **Docker CE from Docker's official apt repository**, **Engine ≥ 26** (sandbox input/output use
   *volume subpaths*). `deploy.sh` installs it if missing and **stops early** on anything older.
 - Open ports **22, 80, 443** only (ufw, set by `deploy.sh`). Docker's published ports bypass ufw,
@@ -36,7 +37,7 @@ API policy) → one throwaway sandbox container per task → county-site (intern
 1. **Products → Compute → Deploy → Cloud Compute** (Shared CPU is enough).
 2. Location: one close to you / the judges.
 3. Image: **Ubuntu 24.04 LTS x64**.
-4. Plan: **4 GB RAM** (e.g. 2 vCPU / 4 GB). Disk ≥ 50 GB is plenty.
+4. Plan: used here **`vx1-g-2c-8g-120s`** (2 vCPU, 8 GB RAM, 120 GB NVMe). 4 GB RAM is the minimum; disk ≥ 50 GB.
 5. **SSH Keys → Add**: paste your public key (`cat ~/.ssh/id_ed25519.pub` on the Mac).
 6. Hostname `eig-agent`. Deploy, then note the **public IPv4**.
 
@@ -48,11 +49,18 @@ adduser --disabled-password --gecos "" eig
 usermod -aG sudo eig
 echo 'eig ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-eig && chmod 440 /etc/sudoers.d/90-eig
 rsync -a --chown=eig:eig /root/.ssh /home/eig/
-# key-only SSH, no root login
-sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/; s/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-systemctl restart ssh
-exit
-ssh eig@<VM_IP>      # check this works before closing the root session elsewhere
+# keep this root session open; from a NEW terminal on the Mac:  ssh eig@<VM_IP>
+# that login must work before you lock root out below
+```
+
+Then, as root (in the still-open root session), key-only SSH and no root login. Ubuntu 24.04
+cloud images ship `/etc/ssh/sshd_config.d/50-cloud-init.conf`, which can turn password login
+back on; sshd uses the first value it reads, so a `00-` drop-in wins:
+
+```bash
+printf 'PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin no\n' > /etc/ssh/sshd_config.d/00-eig-hardening.conf
+sshd -t && systemctl restart ssh
+sshd -T | grep -E '^(passwordauthentication|kbdinteractiveauthentication|permitrootlogin) '
 ```
 
 ### 3. Get the private repo onto the VM (read-only deploy key)
@@ -146,9 +154,12 @@ stays until the real per-token prices are set in step 5.
    Both are in the sandbox image, so this is config only.
 5. **Set the real prices.** Vultr Serverless Inference is usage-billed **per model, per token**
    (no monthly fee; months under $1.00 are not charged). Look up the chosen model's input and
-   output price on Vultr's model pricing page and replace the placeholders `EIG_PRICE_IN_PER_MTOK`
-   / `EIG_PRICE_OUT_PER_MTOK` (USD per 1M tokens). Keep `EIG_DAILY_SPEND_CAP_USD=0.50` until then;
-   raise it only on purpose afterwards.
+   output price on Vultr's model pricing page and set them per role (USD per 1M tokens):
+   `EIG_PRICE_REASONING_IN_PER_MTOK` / `_OUT_` for `MODEL_REASONING` (also used by the planner,
+   fact extraction and the incident report) and `EIG_PRICE_VISION_IN_PER_MTOK` / `_OUT_` for
+   `MODEL_VISION`. Empty role prices fall back to the shared placeholder pair
+   `EIG_PRICE_IN_PER_MTOK` / `EIG_PRICE_OUT_PER_MTOK`. Keep `EIG_DAILY_SPEND_CAP_USD=0.50` until
+   then; raise it only on purpose afterwards.
 6. **Switch the provider**: `EIG_LLM_PROVIDER=vultr`, then `docker compose up -d orchestrator`.
    If the model rejects `json_schema`, set `EIG_RESPONSE_FORMAT=json_object` (or `none`).
 7. **Five capped live runs** (each is rate-limited and counted against the spend cap):

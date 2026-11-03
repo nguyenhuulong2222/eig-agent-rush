@@ -314,7 +314,7 @@ class LLMClient:
             # Worst case for this request: every prompt char a token, plus the full completion cap.
             prompt_chars = sum(len(m["content"]) if isinstance(m["content"], str) else len(user) + 1500
                                for m in messages)
-            budget = config.cost_usd(model, prompt_chars, route.max_tokens)
+            budget = config.cost_usd(model, prompt_chars, route.max_tokens, role)
             refusal = self.spend.reserve(budget)
             if refusal:
                 raise SpendCapReached(f"{task}: {refusal}", calls)
@@ -330,7 +330,7 @@ class LLMClient:
                 calls.append(rec)
                 raise LLMError(f"{task}: {rec.error}", calls) from exc
             latency = int((time.monotonic() - started) * 1000)
-            cost = round(config.cost_usd(model, out["prompt_tokens"], out["completion_tokens"]), 7)
+            cost = round(config.cost_usd(model, out["prompt_tokens"], out["completion_tokens"], role), 7)
             self.spend.settle(budget, cost)
             data, error = None, None
             if out["finish_reason"] == "length":

@@ -74,7 +74,7 @@ sequenceDiagram
 flowchart LR
     U(["Judge / official<br/>browser"])
     AI[("Vultr Serverless Inference<br/>OpenAI-compatible API")]
-    subgraph VM["Vultr Cloud Compute · Ubuntu 24.04 · 4 GB · Docker CE"]
+    subgraph VM["Vultr Cloud Compute · Ubuntu 24.04 · 2 vCPU / 8 GB · Docker CE"]
         C["Caddy :443<br/>HTTPS (sslip.io)"]
         W["web<br/>UI · /api forwarder<br/>/county/ read-only mirror<br/><i>no secrets, no Docker</i>"]
         O["orchestrator<br/>inference key · limits · spend cap<br/>Results Seal · gate · ledger"]
@@ -102,7 +102,7 @@ flowchart LR
 | Service | How |
 |---|---|
 | **Vultr Serverless Inference** | Every model call (planning, tamper verdicts, screenshot/OCR explanation, translation checks, incident report) goes through one OpenAI-compatible client at `https://api.vultrinference.com/v1` (`eig_agent/llm.py`). Model ids come from `GET /v1/models` (`scripts/list_models.py`, which also flags image input). The key lives only in the orchestrator. A daily spend cap reserves each call's worst case before sending. |
-| **Vultr Cloud Compute** | One Ubuntu 24.04 VM (4 GB) runs the whole stack with Docker Compose: Caddy (HTTPS), web, orchestrator, socket-proxy, county site, and the per-task sandboxes. `deploy.sh` builds every image on the VM and checks it end to end. See [DEPLOY.md](DEPLOY.md). |
+| **Vultr Cloud Compute** | One Ubuntu 24.04 VM (`vx1-g-2c-8g-120s`: 2 vCPU, 8 GB, Silicon Valley) runs the whole stack with Docker Compose: Caddy (HTTPS), web, orchestrator, socket-proxy, county site, and the per-task sandboxes. `deploy.sh` builds every image on the VM and checks it end to end. See [DEPLOY.md](DEPLOY.md). |
 
 ## Containment design (Blast Radius Zero)
 

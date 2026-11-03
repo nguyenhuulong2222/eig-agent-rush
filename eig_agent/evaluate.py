@@ -194,7 +194,7 @@ def main(repeats: int = 1, suites=("triage", "drift"), splits=("dev", "heldout",
     meta = {"date": dt.date.today().isoformat(), "repeats": repeats, "workers": WORKERS,
             "suites": list(suites), "splits": list(splits), "gates": list(gates),
             "triage_prompt_sha256": hashlib.sha256(triage.TRIAGE_SYSTEM.encode()).hexdigest(),
-            "provider": config.provider(), "prices_usd_per_token": config.prices()}
+            "provider": config.provider(), "prices_usd_per_token": {"reasoning": config.prices("reasoning"), "vision": config.prices("vision")}}
     result = {"meta": meta, "summary": summarize(rows), "rows": rows}
     write(result, dt.datetime.now().strftime("%Y%m%d-%H%M%S"))
     return result
