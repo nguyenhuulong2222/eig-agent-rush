@@ -124,6 +124,39 @@ class RolesTest(unittest.TestCase):
         self.assertTrue(parts[1]["image_url"]["url"].startswith("data:image/png;base64,"))
 
 
+class RolePricesTest(unittest.TestCase):
+    ENV = {"EIG_PRICE_IN_PER_MTOK": "2", "EIG_PRICE_OUT_PER_MTOK": "4",
+           "EIG_PRICE_REASONING_IN_PER_MTOK": "", "EIG_PRICE_REASONING_OUT_PER_MTOK": "",
+           "EIG_PRICE_VISION_IN_PER_MTOK": "", "EIG_PRICE_VISION_OUT_PER_MTOK": ""}
+
+    def test_falls_back_to_the_shared_pair(self):
+        with mock.patch.dict(os.environ, self.ENV):
+            for role in ("fast", "reasoning", "report", "vision", None):
+                self.assertEqual(config.prices(role), (2e-6, 4e-6), role)
+
+    def test_role_prices_override_each_side_separately(self):
+        env = {**self.ENV, "EIG_PRICE_REASONING_IN_PER_MTOK": "0.5", "EIG_PRICE_VISION_IN_PER_MTOK": "1",
+               "EIG_PRICE_VISION_OUT_PER_MTOK": "9"}
+        with mock.patch.dict(os.environ, env):
+            self.assertEqual(config.prices("reasoning"), (0.5e-6, 4e-6))  # OUT falls back to shared
+            self.assertEqual(config.prices("fast"), (0.5e-6, 4e-6))       # fast/report bill as reasoning
+            self.assertEqual(config.prices("vision"), (1e-6, 9e-6))
+            self.assertAlmostEqual(config.cost_usd("m", 1_000_000, 1_000_000, "vision"), 10.0)
+            self.assertEqual(config.cost_usd("mock", 10**6, 10**6, "vision"), 0.0)
+
+    def test_client_bills_each_call_at_its_role_price(self):
+        env = {**VULTR_ENV, **self.ENV, "MODEL_VISION": "vendor/vl", "EIG_PRICE_VISION_IN_PER_MTOK": "10",
+               "EIG_PRICE_VISION_OUT_PER_MTOK": "10"}
+        with mock.patch.dict(os.environ, env):
+            client = LLMClient(FakeTransport(verdict(), verdict()), spend=SpendCap(1.0))
+            r = client.complete_json(task="t", role="reasoning", system="s", user="u",
+                                     schema=TAMPER_TRIAGE, schema_name="x")
+            v = client.complete_json(task="t", role="vision", system="s", user="u",
+                                     schema=TAMPER_TRIAGE, schema_name="x", images=[b"png"])
+        self.assertAlmostEqual(r.calls[0].cost_usd, 1000 * 2e-6 + 200 * 4e-6)  # shared pair
+        self.assertAlmostEqual(v.calls[0].cost_usd, 1200 * 10e-6)             # vision price
+
+
 class SpendCapTest(unittest.TestCase):
     def test_default_cap_is_fifty_cents_until_prices_are_real(self):
         env = {k: v for k, v in os.environ.items() if k != "EIG_DAILY_SPEND_CAP_USD"}

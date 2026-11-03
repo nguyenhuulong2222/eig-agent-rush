@@ -13,7 +13,8 @@ Env (orchestrator only; the web container and the sandbox never see these):
   VULTR_INFERENCE_BASE_URL  default https://api.vultrinference.com/v1
   MODEL_REASONING           model id for fast/reasoning/report (EIG_FAST_MODEL / EIG_REPORT_MODEL override)
   MODEL_VISION              model id that accepts image input, or empty
-  EIG_PRICE_IN_PER_MTOK / EIG_PRICE_OUT_PER_MTOK   USD per million tokens, for the cost estimate
+  EIG_PRICE_{REASONING,VISION}_{IN,OUT}_PER_MTOK  USD per million tokens per role's model
+  EIG_PRICE_IN_PER_MTOK / EIG_PRICE_OUT_PER_MTOK   shared fallback pair
   EIG_DAILY_SPEND_CAP_USD   no new calls once today's estimated spend would pass this
   EIG_RESPONSE_FORMAT       json_schema (default) | json_object | none
 """
@@ -85,19 +86,32 @@ def _float_env(name: str, default: float) -> float:
         return default
 
 
-def prices() -> tuple:
-    """(USD per prompt token, USD per completion token). Conservative defaults until the
-    real Vultr price is confirmed. Vultr Serverless Inference bills per model, per token: set
-    EIG_PRICE_*_PER_MTOK to the chosen model's numbers from Vultr's model pricing page."""
-    return (_float_env("EIG_PRICE_IN_PER_MTOK", 1.0) / 1e6, _float_env("EIG_PRICE_OUT_PER_MTOK", 3.0) / 1e6)
+# Which price set a role uses. fast/report run on MODEL_REASONING unless overridden, so they bill
+# at the reasoning model's price; only the vision role has its own model.
+PRICE_GROUP = {"fast": "REASONING", "reasoning": "REASONING", "report": "REASONING", "vision": "VISION"}
+
+
+def prices(role: str = None) -> tuple:
+    """(USD per prompt token, USD per completion token) for a role.
+
+    Vultr Serverless Inference bills per model, per token. Lookup order for each of IN / OUT:
+      EIG_PRICE_{REASONING|VISION}_{IN|OUT}_PER_MTOK   (the role's own model)
+      EIG_PRICE_{IN|OUT}_PER_MTOK                       (shared pair)
+      1.00 / 3.00                                       (placeholder until the real price is set)
+    """
+    group = PRICE_GROUP.get(role or "", "REASONING")
+    shared_in = _float_env("EIG_PRICE_IN_PER_MTOK", 1.0)
+    shared_out = _float_env("EIG_PRICE_OUT_PER_MTOK", 3.0)
+    return (_float_env(f"EIG_PRICE_{group}_IN_PER_MTOK", shared_in) / 1e6,
+            _float_env(f"EIG_PRICE_{group}_OUT_PER_MTOK", shared_out) / 1e6)
 
 
 def daily_spend_cap_usd() -> float:
     return _float_env("EIG_DAILY_SPEND_CAP_USD", 0.5)
 
 
-def cost_usd(model: str, prompt_tokens: int, completion_tokens: int) -> float:
+def cost_usd(model: str, prompt_tokens: int, completion_tokens: int, role: str = None) -> float:
     if model == MOCK_MODEL:
         return 0.0
-    p_in, p_out = prices()
+    p_in, p_out = prices(role)
     return prompt_tokens * p_in + completion_tokens * p_out
