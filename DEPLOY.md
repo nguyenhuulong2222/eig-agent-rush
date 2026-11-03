@@ -49,6 +49,7 @@ adduser --disabled-password --gecos "" eig
 usermod -aG sudo eig
 echo 'eig ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-eig && chmod 440 /etc/sudoers.d/90-eig
 rsync -a --chown=eig:eig /root/.ssh /home/eig/
+sudo -l -U eig | grep -q NOPASSWD && echo passwordless-sudo-ok   # deploy.sh needs passwordless sudo (it never prompts)
 # keep this root session open; from a NEW terminal on the Mac:  ssh eig@<VM_IP>
 # that login must work before you lock root out below
 ```

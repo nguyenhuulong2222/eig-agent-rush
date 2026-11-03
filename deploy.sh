@@ -5,7 +5,7 @@
 #   EIG_DOMAIN=eig.example.org ./deploy.sh        # use your own domain instead of sslip.io
 #
 # What it does, in order (each step checks first and only changes what is missing):
-#   1. checks: Ubuntu 24.04, x86_64, sudo; installs make/git/curl/openssl/ufw if missing
+#   1. checks: Ubuntu 24.04, x86_64, passwordless sudo; installs make/git/curl/openssl/ufw if missing
 #   2. Docker CE from Docker's official apt repo if missing; fails early unless Engine >= 26
 #   3. 4 GB swap file if the VM has no swap
 #   4. ufw: deny incoming except 22, 80, 443 (tcp)
@@ -21,7 +21,8 @@ cd "$(dirname "$0")"
 say()  { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 ok()   { printf '   ok   %s\n' "$*"; }
 die()  { printf '\n\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
-SUDO=""; [ "$(id -u)" -eq 0 ] || SUDO="sudo"
+# Non-interactive sudo everywhere (-n): any sudo call fails fast instead of waiting for a password.
+SUDO=""; [ "$(id -u)" -eq 0 ] || SUDO="sudo -n"
 
 # ---------------------------------------------------------------------------------------------
 say "1/7 Host checks"
@@ -32,7 +33,9 @@ ok "Ubuntu ${VERSION_ID}"
 ARCH=$(uname -m)
 [ "$ARCH" = "x86_64" ] || die "x86_64 expected (found $ARCH); the images are built for the VM's own architecture"
 ok "arch $ARCH"
-[ -z "$SUDO" ] || $SUDO -v || die "sudo is required"
+# `sudo -v` would prompt when sudoers uses verifypw=all and the user also matches the sudo group's
+# password rule, even with a NOPASSWD entry. `sudo -n true` checks what this script actually needs.
+[ -z "$SUDO" ] || $SUDO true || die "passwordless sudo is required (see DEPLOY.md step 2: /etc/sudoers.d/90-eig)"
 need=()
 for pkg in make git curl openssl ufw ca-certificates; do
   dpkg -s "$pkg" >/dev/null 2>&1 || need+=("$pkg")
