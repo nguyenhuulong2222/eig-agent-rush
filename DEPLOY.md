@@ -110,9 +110,10 @@ cd ~/eig-agent-rush
 ```
 
 The first run installs Docker and may stop once, asking you to log out and in (docker group);
-run it again. It prints the new **EIG_APPROVER_TOKEN** and **EIG_DEMO_TOKEN once**. Keep
-the approver token private; the demo token is the one published in the submission. It ends
-with `make smoke` and an HTTPS check, then prints:
+run it again. It generates **EIG_APPROVER_TOKEN** and **EIG_DEMO_TOKEN** into `.env` and **never
+prints them** (terminal output gets copied and pasted). Read one only when you need it, on the
+VM: `grep '^EIG_DEMO_TOKEN=' .env`. Keep the approver token private; the demo token is the one
+published in the submission. It ends with `make smoke` and an HTTPS check, then prints:
 
 ```
 Deployed.  Console: https://<a-b-c-d>.sslip.io/   County mirror: https://<a-b-c-d>.sslip.io/county/
@@ -125,8 +126,25 @@ git pull && ./deploy.sh                 # update (rebuilds on the VM, re-runs sm
 docker compose logs -f caddy orchestrator
 make reset                              # put certified results back (auto-reset does it every 15 min)
 make ledger                             # ledger + chain verification
-# rotate a token: empty it in .env, re-run ./deploy.sh (prints the new one once)
-sed -i 's/^EIG_DEMO_TOKEN=.*/EIG_DEMO_TOKEN=/' .env && ./deploy.sh
+```
+
+**Rotate a token** (e.g. after it leaked). Only the orchestrator reads tokens, so only it is
+recreated. Nothing is printed. A fake proposal id proves the result without approving anything:
+the token is checked before the lookup, so **403 = refused, 404 = accepted**.
+
+```bash
+cd ~/eig-agent-rush
+KEY=EIG_APPROVER_TOKEN        # or EIG_DEMO_TOKEN
+OLD=$(grep "^$KEY=" .env | cut -d= -f2-)
+sed -i "s|^$KEY=.*|$KEY=$(openssl rand -base64 30 | tr '+/' '-_' | tr -d '=\n')|" .env
+NEW=$(grep "^$KEY=" .env | cut -d= -f2-)
+docker compose up -d --force-recreate --no-deps orchestrator
+until curl -fsS -o /dev/null http://127.0.0.1:8000/api/status; do sleep 1; done   # a 502 while it starts is normal
+U="https://$(grep '^EIG_HOSTNAME=' .env | cut -d= -f2)/api/proposals/p000000000000/reject"
+code() { curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' -H "Authorization: Bearer $1" "$U"; }
+echo "old=$(code "$OLD") new=$(code "$NEW")   (expect old=403 new=404)"
+unset OLD NEW
+# read the new token only when you need it:  grep "^$KEY=" .env
 ```
 
 ### Troubleshooting
