@@ -79,6 +79,15 @@ class VultrTransportTest(unittest.TestCase):
         self.assertNotIn("extra_body", captured["create"])
         self.assertAlmostEqual(res.calls[0].cost_usd, 0.0015)
 
+    def test_reasoning_effort_is_sent_only_when_set(self):
+        for value, expected in (("low", {"reasoning_effort": "low"}), ("", None), ("bogus", None)):
+            captured = {}
+            env = {**VULTR_ENV, "EIG_REASONING_EFFORT": value}
+            with mock.patch.dict(os.environ, env), mock.patch.dict(sys.modules, {"openai": self.fake_openai(captured)}):
+                LLMClient(spend=SpendCap(1.0)).complete_json(task="t", role="reasoning", system="s", user="u",
+                                                             schema=TAMPER_TRIAGE, schema_name="x")
+            self.assertEqual(captured["create"].get("extra_body"), expected, value)
+
     def test_response_format_can_be_relaxed(self):
         captured = {}
         env = {**VULTR_ENV, "EIG_RESPONSE_FORMAT": "none"}

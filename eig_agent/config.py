@@ -52,6 +52,17 @@ def response_format() -> str:
     return env("EIG_RESPONSE_FORMAT", "json_schema").lower()
 
 
+REASONING_EFFORTS = ("minimal", "low", "medium", "high")
+
+
+def reasoning_effort() -> str:
+    """EIG_REASONING_EFFORT (minimal|low|medium|high), sent as `reasoning_effort` on every call.
+    Empty = not sent (model default). Reasoning tokens count against max_tokens, so low/minimal also
+    keeps replies from being cut off."""
+    value = env("EIG_REASONING_EFFORT").lower()
+    return value if value in REASONING_EFFORTS else ""
+
+
 @dataclass(frozen=True)
 class Route:
     role: str

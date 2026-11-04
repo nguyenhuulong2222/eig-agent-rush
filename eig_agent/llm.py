@@ -163,6 +163,7 @@ def vultr_transport() -> Transport:
     client = OpenAI(base_url=config.base_url(), api_key=key,
                     timeout=config.TIMEOUT_S, max_retries=config.TRANSPORT_RETRIES)
     fmt = config.response_format()
+    effort = config.reasoning_effort()
 
     def send(*, model, messages, max_tokens, temperature, schema_name=None, schema=None):
         kwargs = {}
@@ -172,6 +173,8 @@ def vultr_transport() -> Transport:
                                                          "schema": schema}}
         elif schema is not None and fmt == "json_object":
             kwargs["response_format"] = {"type": "json_object"}
+        if effort:  # sent in the body directly, so it works whatever the SDK version knows about
+            kwargs["extra_body"] = {"reasoning_effort": effort}
         resp = client.chat.completions.create(model=model, messages=messages, max_tokens=max_tokens,
                                               temperature=temperature, **kwargs)
         choice = resp.choices[0]
