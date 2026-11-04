@@ -133,6 +133,10 @@ services:
     network_mode: none
     read_only: true
     tmpfs: [/tmp]
+    volumes:
+      # repo files some tests check but the production image does not ship (read-only)
+      - ./.env.example:/app/.env.example:ro
+      - ./deploy.sh:/app/deploy.sh:ro
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     environment:

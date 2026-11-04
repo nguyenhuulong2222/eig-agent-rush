@@ -65,7 +65,7 @@ def _sha(data: bytes) -> str:
 
 
 def evidence_path() -> str:
-    want = os.environ.get("EIG_EVIDENCE_PATH", "").strip().lower()
+    want = config.env("EIG_EVIDENCE_PATH").lower()
     if want == "vision" and config.has_vision():
         return "vision"
     if want in ("", "auto"):
