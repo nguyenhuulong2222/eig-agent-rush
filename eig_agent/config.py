@@ -103,7 +103,7 @@ JSON_RETRIES = 1        # one extra call if the reply is not valid JSON for the 
 
 # Gate (see triage.decide / triage.decide_v2).
 TAMPER_CONFIDENCE = 0.8
-GATE = os.environ.get("EIG_GATE", "v2")  # v2: two independent verdicts must agree
+GATE = os.environ.get("EIG_GATE", "v2")  # v2: verdicts from two models (two families) must agree
 
 
 def _float_env(name: str, default: float) -> float:

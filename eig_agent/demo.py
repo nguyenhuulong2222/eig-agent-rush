@@ -38,7 +38,7 @@ def _steps(feature: str) -> list:
     if feature == "seal":
         return [("seal", "Results Seal: SHA-256 and checker rules (deterministic)"),
                 ("triage", f"{reasoning}: tamper triage, reasoning on"
-                           + (", 2 independent calls" if config.GATE == "v2" else "")),
+                           + (", 2 model verdicts" if config.GATE == "v2" else "")),
                 ("gate", "Gate decision (code, not the model)"
                          + (": both verdicts must agree" if config.GATE == "v2" else "")),
                 ("report", f"{report}: incident report (only after a rollback decision)")]
