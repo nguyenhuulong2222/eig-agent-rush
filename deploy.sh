@@ -10,7 +10,7 @@
 #   3. 4 GB swap file if the VM has no swap
 #   4. ufw: deny incoming except 22, 80, 443 (tcp)
 #   5. .env: created from .env.example if absent; EIG_APPROVER_TOKEN / EIG_DEMO_TOKEN generated
-#      with openssl if empty (printed ONCE, right after generation); EIG_HOSTNAME from the VM IP
+#      with openssl if empty (NEVER printed: read them with grep from .env); EIG_HOSTNAME from the VM IP
 #   6. builds every image ON THIS VM (never ship images built on another CPU architecture)
 #   7. docker compose up -d, then `make smoke` and an HTTPS health check
 #
@@ -133,9 +133,15 @@ setv COMPOSE_FILE "docker-compose.yml:docker-compose.prod.yml"
 setv EIG_TRUSTED_PROXY_HOPS 2
 ok "EIG_HOSTNAME=$HOST"
 ok "provider: $(getv EIG_LLM_PROVIDER || true) (set EIG_LLM_PROVIDER=vultr + key + MODEL_REASONING on Nov 3)"
+# Tokens are never printed (terminal output gets copied, pasted and logged). Only key names are shown.
+for key in EIG_APPROVER_TOKEN EIG_DEMO_TOKEN; do
+  case " $NEW_TOKENS " in
+    *" $key "*) ok "$key: new token generated and stored in .env (not printed)";;
+    *)          ok "$key: already set in .env (unchanged, not printed)";;
+  esac
+done
 if [ -n "$NEW_TOKENS" ]; then
-  printf '\n   \033[33mNew tokens (shown once; they are stored only in .env on this VM):\033[0m\n'
-  for key in $NEW_TOKENS; do printf '     %s=%s\n' "$key" "$(getv "$key")"; done
+  printf '   Read a token on this VM only when you need it, e.g.:  grep "^EIG_DEMO_TOKEN=" %s/.env\n' "$PWD"
   printf '   Keep EIG_APPROVER_TOKEN private. EIG_DEMO_TOKEN is the one you publish for judges.\n'
 fi
 
