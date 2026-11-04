@@ -147,7 +147,8 @@ class RolePricesTest(unittest.TestCase):
         example = open(os.path.join(ROOT, ".env.example"), encoding="utf-8").read()
         self.assertIn("CONSERVATIVE CEILING, NOT VULTR LIST PRICES", example)
         for side, value in (("IN", "2.00"), ("OUT", "6.00")):
-            self.assertEqual(len(re.findall(rf"(?m)^EIG_PRICE_(?:REASONING_|VISION_)?{side}_PER_MTOK={value}$", example)), 3)
+            self.assertEqual(len(re.findall(rf"(?m)^EIG_PRICE_(?:REASONING_|VISION_|TRIAGE_2_)?{side}_PER_MTOK={value}$",
+                                            example)), 4)
 
     def test_falls_back_to_the_shared_pair(self):
         with mock.patch.dict(os.environ, self.ENV):
@@ -177,6 +178,42 @@ class RolePricesTest(unittest.TestCase):
         self.assertAlmostEqual(v.calls[0].cost_usd, 1200 * 10e-6)             # vision price
 
 
+class SecondVerdictTest(unittest.TestCase):
+    def setUp(self):
+        self.live = case_live_bytes(load_case("t01"), CERT)
+
+    def test_second_verdict_uses_its_own_model_and_price(self):
+        env = {**VULTR_ENV, "MODEL_TRIAGE_2": "other/family", "EIG_PRICE_TRIAGE_2_IN_PER_MTOK": "10",
+               "EIG_PRICE_TRIAGE_2_OUT_PER_MTOK": "10"}
+        fake = FakeTransport(verdict(), verdict(), {"incident_report_md": "r"})
+        with mock.patch.dict(os.environ, env):
+            self.assertEqual(config.routes()["triage_2"].model, "other/family")
+            out = triage.run(CERT, self.live, {}, LLMClient(fake, spend=SpendCap(1.0)), gate="v2")
+        self.assertEqual(out["vote_models"], ["vendor/reasoner", "other/family"])
+        self.assertFalse(out["votes_same_model"])
+        self.assertEqual({s["model"] for s in fake.sent[:2]}, {"vendor/reasoner", "other/family"})
+        by_task = {c.task: c for c in out["calls"]}
+        self.assertAlmostEqual(by_task["tamper_triage#2"].cost_usd, 1200 * 10e-6)   # its own price
+        self.assertEqual(out["decision"]["action"], "ROLLBACK")
+        self.assertEqual(out["decision"]["vote_models"], ["vendor/reasoner", "other/family"])
+
+    def test_without_a_second_model_the_gate_says_so(self):
+        env = {**VULTR_ENV, "MODEL_TRIAGE_2": ""}
+        with mock.patch.dict(os.environ, env):
+            self.assertEqual(config.routes()["triage_2"].model, "vendor/reasoner")
+            out = triage.run(CERT, self.live, {}, LLMClient(FakeTransport(verdict(), verdict(), {"incident_report_md": "r"}),
+                                                            spend=SpendCap(1.0)), gate="v2")
+        self.assertTrue(out["votes_same_model"])
+        self.assertIn("same model", out["decision"]["note"])
+
+    def test_a_failed_second_verdict_escalates(self):
+        env = {**VULTR_ENV, "MODEL_TRIAGE_2": "other/family"}
+        with mock.patch.dict(os.environ, env):
+            out = triage.run(CERT, self.live, {}, LLMClient(FakeTransport(verdict(), TimeoutError("down")),
+                                                            spend=SpendCap(1.0)), gate="v2")
+        self.assertEqual(out["decision"]["action"], "ESCALATE")
+
+
 class SpendCapTest(unittest.TestCase):
     def test_default_cap_is_fifty_cents_until_prices_are_real(self):
         env = {k: v for k, v in os.environ.items() if k != "EIG_DAILY_SPEND_CAP_USD"}
@@ -201,6 +238,32 @@ class SpendCapTest(unittest.TestCase):
                 task="t", role="reasoning", system="s", user="u", schema=TAMPER_TRIAGE, schema_name="x")
         self.assertAlmostEqual(cap.status()["spent_usd"], 0.0012)  # 1000 in + 200 out at $1/M
         self.assertEqual(cap.reserved, 0.0)
+
+    def test_spend_from_another_process_counts_immediately(self):
+        import datetime as dt
+        today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.jsonl")
+            with mock.patch.dict(os.environ, {"EIG_USAGE_LOG": path}):
+                server = SpendCap(0.5)
+                self.assertEqual(server.status()["spent_usd"], 0.0)
+                with open(path, "a") as fh:  # a CLI run in another process logs a call
+                    fh.write(json.dumps({"ts": today + "T02:00:00+00:00", "cost_usd": 0.03552}) + "\n")
+                self.assertAlmostEqual(server.status()["spent_usd"], 0.03552)
+                with open(path, "a") as fh:
+                    fh.write(json.dumps({"ts": today + "T02:01:00+00:00", "cost_usd": 0.47}) + "\n")
+                self.assertIsNotNone(server.reserve(0.01))  # 0.50552 would pass the 0.50 cap
+
+    def test_own_calls_are_logged_before_the_reservation_is_released(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.jsonl")
+            env = {**VULTR_ENV, "EIG_USAGE_LOG": path}
+            with mock.patch.dict(os.environ, env):
+                cap = SpendCap(1.0)
+                LLMClient(FakeTransport(verdict()), spend=cap).complete_json(
+                    task="t", role="reasoning", system="s", user="u", schema=TAMPER_TRIAGE, schema_name="x")
+                self.assertAlmostEqual(cap.status()["spent_usd"], 0.0012)   # counted once, not twice
+                self.assertEqual(cap.reserved, 0.0)
 
     def test_restart_keeps_todays_spend_from_the_usage_log(self):
         import datetime as dt

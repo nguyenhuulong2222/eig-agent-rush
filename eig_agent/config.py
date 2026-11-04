@@ -74,18 +74,22 @@ class Route:
 def routes() -> dict:
     """Role -> Route. With the mock provider every role reports the model id "mock"."""
     if provider() == "mock":
-        reasoning = fast = report = vision = MOCK_MODEL
+        reasoning = fast = report = vision = triage_2 = MOCK_MODEL
     else:
         reasoning = env("MODEL_REASONING")
         fast = env("EIG_FAST_MODEL") or reasoning
         report = env("EIG_REPORT_MODEL") or reasoning
         vision = env("MODEL_VISION")
+        # Second tamper verdict: a different model family, so the two verdicts are not one model
+        # asked twice at temperature 0 (live run 3 gave byte-identical verdicts). Empty = reasoning.
+        triage_2 = env("MODEL_TRIAGE_2") or reasoning
     return {
         "fast": Route("fast", fast, max_tokens=1500),
         # Reasoning models spend part of max_tokens on their thinking, so leave room for it.
         "reasoning": Route("reasoning", reasoning, max_tokens=6000),
         "report": Route("report", report, max_tokens=1800),
         "vision": Route("vision", vision, max_tokens=1500),
+        "triage_2": Route("triage_2", triage_2, max_tokens=6000),
     }
 
 
@@ -113,14 +117,15 @@ def _float_env(name: str, default: float) -> float:
 # at the reasoning model's price; only the vision role has its own model.
 # Conservative ceiling (USD per 1M tokens), above every Vultr rate seen; NOT a list price.
 CEILING_IN_PER_MTOK, CEILING_OUT_PER_MTOK = 2.0, 6.0
-PRICE_GROUP = {"fast": "REASONING", "reasoning": "REASONING", "report": "REASONING", "vision": "VISION"}
+PRICE_GROUP = {"fast": "REASONING", "reasoning": "REASONING", "report": "REASONING", "vision": "VISION",
+               "triage_2": "TRIAGE_2"}
 
 
 def prices(role: str = None) -> tuple:
     """(USD per prompt token, USD per completion token) for a role.
 
     Vultr Serverless Inference bills per model, per token. Lookup order for each of IN / OUT:
-      EIG_PRICE_{REASONING|VISION}_{IN|OUT}_PER_MTOK   (the role's own model)
+      EIG_PRICE_{REASONING|VISION|TRIAGE_2}_{IN|OUT}_PER_MTOK   (the role's own model)
       EIG_PRICE_{IN|OUT}_PER_MTOK                       (shared pair)
       2.00 / 6.00                                       (conservative ceiling, not a list price)
     """

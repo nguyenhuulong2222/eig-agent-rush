@@ -126,6 +126,14 @@ def plan(goal: str, client: LLMClient) -> dict:
     return out
 
 
+def check_metadata(job_id: str) -> dict:
+    """Change metadata for a live check. The agent only knows how it READ the site; who changed the
+    file is not known to it, and saying so explicitly stops the model from inferring an origin."""
+    return {"evidence_collected_by": f"EIG agent, read-only sandbox job {job_id} fetched the live file",
+            "url": SITE + RESULTS_JSON,
+            "change_origin": "unknown: no upload record, change ticket or submitter was provided"}
+
+
 def to_task(steps: list, ev_path: str) -> dict:
     task_steps = []
     for s in steps:
@@ -219,8 +227,7 @@ class Agent:
             return out
 
         cert = self._certified()
-        t = triage.run(cert, live, {"source": "live county site, read by sandbox job " + run["job_id"],
-                                    "url": SITE + RESULTS_JSON}, client, progress=progress)
+        t = triage.run(cert, live, check_metadata(run["job_id"]), client, progress=progress)
         out["calls"] += t.pop("calls")
         out.update(t)  # seal, gate, triage, votes, triage_error, decision, risk_signals, incident_report_md
 

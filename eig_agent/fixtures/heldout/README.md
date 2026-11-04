@@ -18,3 +18,10 @@ was frozen at the same time; `tests/test_m1.py` fails if `triage.TRIAGE_SYSTEM` 
 
 H01 and H02 check that the "a ballot carries every contest" rule added after T03 does not
 push legitimate single-contest changes to ROLLBACK.
+
+## Prompt versions
+
+| Version | Triage prompt SHA-256 | Notes |
+|---|---|---|
+| v1 | `588f117b4a2d…` | Earlier Nemotron version. Its held-out results are **not** carried over to this project. |
+| v2 (2026-11-03) | `f115b01260fe…` | Adds "cite only facts present in the input; never infer who made a change" after live run 2 on Vultr attributed a change to "a sandbox job" without evidence. Any held-out eval here uses v2. |

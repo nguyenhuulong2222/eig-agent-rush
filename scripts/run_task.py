@@ -74,8 +74,11 @@ def report(job, wall):
               f"rules={[f['rule_id'] for f in seal.get('findings') or []]}")
         print(f"  decision {(r.get('decision') or {}).get('action')}: {(r.get('decision') or {}).get('reason')}")
         for i, v in enumerate(r.get("votes") or []):
-            print(f"  verdict {i + 1}: " + (f"{v['verdict']} {v['confidence']:.2f} -> {v['recommended_action']} | "
+            model = (r.get("vote_models") or ["?", "?"])[i] if i < len(r.get("vote_models") or []) else "?"
+            print(f"  verdict {i + 1} [{model}]: " + (f"{v['verdict']} {v['confidence']:.2f} -> {v['recommended_action']} | "
                                             f"{v['summary'][:160]}" if v else "none (invalid reply)"))
+        if r.get("votes_same_model"):
+            print("  NOTE: both verdicts came from the same model (MODEL_TRIAGE_2 not set)")
         if r.get("triage_error"):
             print(f"  triage error: {r['triage_error'][:200]}")
         n = r.get("evidence_note")

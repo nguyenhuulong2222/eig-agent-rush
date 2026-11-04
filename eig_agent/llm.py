@@ -92,12 +92,31 @@ class LLMResult:
 class SpendCap:
     """Daily (UTC) estimated spend. Each call reserves its worst case (prompt + max_tokens)
     before it is sent and settles to the real usage after, so concurrent calls cannot overshoot.
-    On first use, today's spend is re-read from the usage log so a restart does not reset it."""
+
+    The usage log is the shared record: every process (the server, a CLI run inside the
+    container) appends to it. Today's spend is re-read whenever the log file changed, so spend
+    from another process counts at once, and a restart does not reset it. Without a log
+    (EIG_USAGE_LOG=off) this process's own settled spend is used."""
 
     def __init__(self, cap_usd: Optional[float] = None):
         self._cap = cap_usd
         self.lock = threading.Lock()
-        self.day, self.spent, self.reserved = None, 0.0, 0.0
+        self.day, self.own, self.reserved = None, 0.0, 0.0
+        self._sig, self._logged = None, 0.0
+
+    @property
+    def spent(self) -> float:
+        """Today's spend: the usage log (all processes) or, at least, this process's own calls."""
+        path = usage_log_path()
+        if os.environ.get("EIG_USAGE_LOG") != "off":
+            try:
+                st = os.stat(path)
+                sig = (st.st_size, st.st_mtime_ns)
+            except OSError:
+                sig = None
+            if sig != self._sig:
+                self._sig, self._logged = sig, (_logged_spend(self.day) if sig else 0.0)
+        return max(self.own, self._logged)
 
     @property
     def cap(self) -> float:
@@ -106,13 +125,14 @@ class SpendCap:
     def _roll(self) -> None:
         today = dt.datetime.now(dt.timezone.utc).date()
         if self.day != today:
-            self.day, self.spent, self.reserved = today, _logged_spend(today), 0.0
+            self.day, self.own, self.reserved, self._sig = today, 0.0, 0.0, None
 
     def reserve(self, usd: float) -> Optional[str]:
         with self.lock:
             self._roll()
-            if self.spent + self.reserved + usd > self.cap:
-                return (f"daily spend cap reached: ${self.spent:.4f} spent today, "
+            spent = self.spent
+            if spent + self.reserved + usd > self.cap:
+                return (f"daily spend cap reached: ${spent:.4f} spent today, "
                         f"cap ${self.cap:.2f} (EIG_DAILY_SPEND_CAP_USD)")
             self.reserved += usd
             return None
@@ -121,7 +141,7 @@ class SpendCap:
         with self.lock:
             self._roll()
             self.reserved = max(0.0, self.reserved - reserved)
-            self.spent += actual
+            self.own += actual
 
     def status(self) -> dict:
         with self.lock:
@@ -334,7 +354,6 @@ class LLMClient:
                 raise LLMError(f"{task}: {rec.error}", calls) from exc
             latency = int((time.monotonic() - started) * 1000)
             cost = round(config.cost_usd(model, out["prompt_tokens"], out["completion_tokens"], role), 7)
-            self.spend.settle(budget, cost)
             data, error = None, None
             if out["finish_reason"] == "length":
                 error = f"reply cut off at max_tokens={route.max_tokens}"
@@ -350,7 +369,8 @@ class LLMClient:
                     error = f"invalid JSON: {exc}"
             rec = CallRecord(task, role, model, out["prompt_tokens"], out["completion_tokens"],
                              out["reasoning_tokens"], latency, cost, error is None, attempt, error)
-            _write_usage(rec)
+            _write_usage(rec)               # log first, then release the reservation: never a gap
+            self.spend.settle(budget, cost)
             calls.append(rec)
             if error is None:
                 return LLMResult(data, calls)

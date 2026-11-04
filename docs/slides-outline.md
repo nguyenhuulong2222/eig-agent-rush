@@ -19,7 +19,7 @@ Fictional county throughout; every screenshot from the live Vultr deployment. Fi
 - **Code does the math**: the Results Seal (SHA-256 vs certified) is the only tamper detector,
   plus deterministic arithmetic rules.
 - **AI does the reasoning**: a Vultr Serverless Inference model explains the diff, reads the
-  screenshot, and gives two independent verdicts. It never acts alone.
+  screenshot, and two models from different families each give a verdict. It never acts alone.
 - **People make the call**: a rollback is a proposal; approval needs a token; a fresh sandbox
   proves the restore.
 - **Everything is logged** in a hash-chained public ledger.

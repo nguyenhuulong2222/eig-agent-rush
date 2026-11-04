@@ -397,6 +397,16 @@ class AgentTest(TempDirTest):
         self.assertIn("BREACH", self.types())
 
 
+class CheckMetadataTest(unittest.TestCase):
+    def test_metadata_separates_how_we_read_from_who_changed_it(self):
+        from eig_agent import triage
+        meta = agent.check_metadata("j0123456789abcdef")
+        self.assertNotIn("source", meta)
+        self.assertIn("read-only sandbox job j0123456789abcdef", meta["evidence_collected_by"])
+        self.assertTrue(meta["change_origin"].startswith("unknown"))
+        self.assertIn("never infer who made a change", triage.TRIAGE_SYSTEM)
+
+
 class PlanTest(unittest.TestCase):
     def test_validate_drops_off_site_and_unknown_actions(self):
         kept, rejected = agent.validate_plan([
