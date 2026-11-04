@@ -186,6 +186,14 @@ The site resets itself every 15 minutes.
 | Clean site | NONE, no model call | `<tbd>` | `<tbd>` | `<tbd>` |
 | One number changed (totals broken) | ROLLBACK via RES-003 | `<tbd>` | `<tbd>` | `<tbd>` |
 | Votes moved, totals kept | model verdicts decide | `<tbd>` | `<tbd>` | `<tbd>` |
+
+**Finding from the live runs (run 2):** one verdict said *"the change came from a sandbox job"*.
+That was unsupported: the change metadata said the live file was *read* by a sandbox job, and
+nothing in the input said who changed it. The decision was unaffected (RES-003 alone triggered
+the rollback), but the explanation was wrong. Fix: the metadata now separates
+`evidence_collected_by` from `change_origin: unknown`, and the triage prompt says to cite only
+provided facts and never infer who made a change. It was deployed after the five runs so they all
+used the same prompt, then verified with one more check (`<tbd>`).
 | Translation drift (fixtures, 4 languages) | 3 mismatches found | `<tbd>` | `<tbd>` | `<tbd>` |
 | Red-team drill | 5 × CONTAINED | `<tbd>` (5/5 with MOCK) | `<tbd>` | `<tbd>` |
 
@@ -216,6 +224,9 @@ What is already measured, offline and with the MOCK provider:
 - **Shared approver tokens** are not per-person identities. Real deployments need SSO and roles.
 - **Untested on x86_64 until the first deploy.** Everything was built and tested on arm64;
   `deploy.sh` rebuilds on the VM and runs the smoke suite before reporting success.
+- **Model explanations can over-reach.** Live run 2 attributed a change to "a sandbox job" with no
+  evidence for it (fixed in the prompt and metadata, see Evaluation). Explanations are for the
+  official; the gate never depends on them alone.
 - **Costs are ceiling estimates** ($2 / $6 per 1M tokens), not Vultr list prices.
 - **No live model results yet** (see Evaluation). Until Nov 3 the provider is MOCK, and every
   mock reply is labeled `[MOCK]`.

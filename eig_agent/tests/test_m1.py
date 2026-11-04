@@ -118,10 +118,11 @@ class GateTest(unittest.TestCase):
 
 class FrozenPromptTest(unittest.TestCase):
     def test_triage_prompt_is_frozen_for_the_heldout_set(self):
-        # See fixtures/heldout/README.md. Changing the prompt invalidates the held-out results.
+        # See fixtures/heldout/README.md. Changing the prompt invalidates held-out results measured
+        # with the previous version. v2 (2026-11-03): "cite only provided evidence" rule after live run 2.
         import hashlib
         self.assertEqual(hashlib.sha256(triage.TRIAGE_SYSTEM.encode()).hexdigest(),
-                         "588f117b4a2d2f8ecfe90b1944ab2387e7f7270570fa24fa7d4f8f85c1b564d7")
+                         "f115b01260fec6d0be0e25e4578329d738b5d3c286124a6dd099a50714b73085")
 
     def test_heldout_cases_apply(self):
         heldout = os.path.join(os.path.dirname(CASES), "heldout")
