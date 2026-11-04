@@ -85,6 +85,22 @@ class CountyLinksTest(unittest.TestCase):
             self.assertRegex(html, r"form-action 'none'", name)
             self.assertFalse(re.search(r"<form\b", html), name)
 
+    def test_no_stale_branding_on_county_pages(self):
+        stale = re.compile(r"gitlab|\bduo\b|nemotron|nebius|\brender\b|tavily|showcase-0b6166", re.I)
+        hits = []
+        for page in county_pages():
+            with open(page, encoding="utf-8") as fh:
+                for no, line in enumerate(fh, 1):
+                    if stale.search(line):
+                        hits.append(f"{os.path.relpath(page, PUBLIC)}:{no}")
+        self.assertEqual(hits, [])
+
+    def test_footer_and_repository_link(self):
+        with open(os.path.join(PUBLIC, "index.html"), encoding="utf-8") as fh:
+            html = fh.read()
+        self.assertIn("the target that Election Integrity Guard protects: a sandboxed agent on Vultr", html)
+        self.assertIn('href="https://github.com/nguyenhuulong2222/eig-agent-rush"', html)
+
     def test_shown_official_domains_are_unchanged(self):
         with open(os.path.join(PUBLIC, "voter-info.html"), encoding="utf-8") as fh:
             text = visible_text(fh.read())
