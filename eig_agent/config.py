@@ -100,6 +100,8 @@ def _float_env(name: str, default: float) -> float:
 
 # Which price set a role uses. fast/report run on MODEL_REASONING unless overridden, so they bill
 # at the reasoning model's price; only the vision role has its own model.
+# Conservative ceiling (USD per 1M tokens), above every Vultr rate seen; NOT a list price.
+CEILING_IN_PER_MTOK, CEILING_OUT_PER_MTOK = 2.0, 6.0
 PRICE_GROUP = {"fast": "REASONING", "reasoning": "REASONING", "report": "REASONING", "vision": "VISION"}
 
 
@@ -109,11 +111,11 @@ def prices(role: str = None) -> tuple:
     Vultr Serverless Inference bills per model, per token. Lookup order for each of IN / OUT:
       EIG_PRICE_{REASONING|VISION}_{IN|OUT}_PER_MTOK   (the role's own model)
       EIG_PRICE_{IN|OUT}_PER_MTOK                       (shared pair)
-      1.00 / 3.00                                       (placeholder until the real price is set)
+      2.00 / 6.00                                       (conservative ceiling, not a list price)
     """
     group = PRICE_GROUP.get(role or "", "REASONING")
-    shared_in = _float_env("EIG_PRICE_IN_PER_MTOK", 1.0)
-    shared_out = _float_env("EIG_PRICE_OUT_PER_MTOK", 3.0)
+    shared_in = _float_env("EIG_PRICE_IN_PER_MTOK", CEILING_IN_PER_MTOK)
+    shared_out = _float_env("EIG_PRICE_OUT_PER_MTOK", CEILING_OUT_PER_MTOK)
     return (_float_env(f"EIG_PRICE_{group}_IN_PER_MTOK", shared_in) / 1e6,
             _float_env(f"EIG_PRICE_{group}_OUT_PER_MTOK", shared_out) / 1e6)
 

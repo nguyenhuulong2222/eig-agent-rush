@@ -171,7 +171,8 @@ stays until the real per-token prices are set in step 5.
    Pick `MODEL_REASONING` (and `MODEL_VISION` if any model takes images) and set them in `.env`.
 4. **Choose the evidence path**: `EIG_EVIDENCE_PATH=vision` if a vision model exists, else `ocr`.
    Both are in the sandbox image, so this is config only.
-5. **Set the real prices.** Vultr Serverless Inference is usage-billed **per model, per token**
+5. **Set the prices.** Until list prices are confirmed, use the conservative ceiling from
+   `.env.example` (2.00 in / 6.00 out per 1M for every role; not a list price). Then, once known: Vultr Serverless Inference is usage-billed **per model, per token**
    (no monthly fee; months under $1.00 are not charged). Look up the chosen model's input and
    output price on Vultr's model pricing page and set them per role (USD per 1M tokens):
    `EIG_PRICE_REASONING_IN_PER_MTOK` / `_OUT_` for `MODEL_REASONING` (also used by the planner,
