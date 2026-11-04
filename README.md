@@ -50,7 +50,7 @@ sequenceDiagram
     S-->>O: DOM text, screenshot, OCR, raw bytes
     Note over O,S: container killed if > 60 s, always removed
     O->>O: Results Seal: SHA-256(live) vs certified + arithmetic rules
-    O->>AI: explain the diff, read the screenshot, 2 independent verdicts
+    O->>AI: explain the diff, read the screenshot, verdicts from 2 model families
     O->>O: gate (code): NONE · ROLLBACK · ESCALATE · HUMAN_SIGNOFF
     O-->>V: ROLLBACK proposed — nothing changes yet
     V->>W: Approve (Bearer token)
@@ -62,7 +62,7 @@ sequenceDiagram
 - **Code does the math, AI does the reasoning.** The Results Seal (SHA-256 of the published
   results vs the certified copy) is the **only** tamper detector. The model explains the change,
   rates severity and routes. It can never trigger a restore alone: a ROLLBACK needs either a
-  deterministic rule failure or two independent model verdicts that agree, and then a person.
+  deterministic rule failure or verdicts from two different model families that agree, and then a person.
 - **Every read of the web happens in a sandbox** that has nothing worth stealing and nowhere to send it.
 - **Red-team drill**: a county page hides a prompt injection. A second fresh sandbox does
   *exactly* what it asks (the worst case: an agent that obeyed). Every attempt is logged as
@@ -194,6 +194,14 @@ the rollback), but the explanation was wrong. Fix: the metadata now separates
 `evidence_collected_by` from `change_origin: unknown`, and the triage prompt says to cite only
 provided facts and never infer who made a change. It was deployed after the five runs so they all
 used the same prompt, then verified with one more check (`<tbd>`).
+
+**Finding from the live runs (run 3): the two verdicts were byte-identical.** Both came from
+`qwen3.8-flash-next` with the same prompt and input at temperature 0: one verdict counted twice,
+not two. Fix: verdict 2 now comes from a different model family (`MODEL_TRIAGE_2`, here
+`glm-5.3-flash`) with its own price variables; the gate is unchanged (both must say tampering at
+≥ 0.8 to propose a rollback, and a failed or invalid verdict escalates to a person). Different
+families reduce correlated errors but still see the same evidence and prompt, so this is
+"two model families", not full independence. Verified after the five runs (`<tbd>`).
 | Translation drift (fixtures, 4 languages) | 3 mismatches found | `<tbd>` | `<tbd>` | `<tbd>` |
 | Red-team drill | 5 × CONTAINED | `<tbd>` (5/5 with MOCK) | `<tbd>` | `<tbd>` |
 
@@ -224,6 +232,9 @@ What is already measured, offline and with the MOCK provider:
 - **Shared approver tokens** are not per-person identities. Real deployments need SSO and roles.
 - **Untested on x86_64 until the first deploy.** Everything was built and tested on arm64;
   `deploy.sh` rebuilds on the VM and runs the smoke suite before reporting success.
+- **Two verdicts, same evidence.** Verdict 2 uses a different model family, but both read the same
+  input and prompt; a well-crafted input could mislead both. The deterministic rules and a person
+  remain the backstop.
 - **Model explanations can over-reach.** Live run 2 attributed a change to "a sandbox job" with no
   evidence for it (fixed in the prompt and metadata, see Evaluation). Explanations are for the
   official; the gate never depends on them alone.

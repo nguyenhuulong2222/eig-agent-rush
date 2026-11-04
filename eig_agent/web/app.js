@@ -120,7 +120,7 @@ function renderChips() {
 // --- runs -------------------------------------------------------------------------------------
 const STEP_LABELS = {
   plan: "Plan the reads", sandbox: "Sandbox reads the county site", seal: "Results Seal (code)",
-  triage: "Model verdicts (2 independent)", gate: "Gate decision (code)", report: "Incident report",
+  triage: "Model verdicts (2 model families)", gate: "Gate decision (code)", report: "Incident report",
   evidence: "Model reads the screenshot evidence", extract: "Translations: extract facts",
   compare: "Translations: compare (code)", explain: "Translations: explain",
   read: "Sandbox opens the red-team page", drill: "Fresh sandbox does what the injection asks",
@@ -276,7 +276,7 @@ function renderCheck(r) {
     const votes = (r.votes || []).filter(Boolean);
     if (votes.length) {
       nodes.push(el("h3", null, "Model verdicts"), el("div", { class: "verdict" }, votes.map((v, i) =>
-        box(`Verdict ${i + 1}`, `${v.verdict} · ${Number(v.confidence).toFixed(2)}`,
+        box(`Verdict ${i + 1}${(r.vote_models || [])[i] ? " · " + r.vote_models[i] : ""}`, `${v.verdict} · ${Number(v.confidence).toFixed(2)}`,
           v.verdict === "tampering" ? "bad" : v.verdict === "legitimate" ? "good" : "mid", v.summary))));
     }
     const n = r.evidence_note;

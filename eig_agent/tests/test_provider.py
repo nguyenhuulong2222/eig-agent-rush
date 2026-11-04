@@ -147,7 +147,8 @@ class RolePricesTest(unittest.TestCase):
         example = open(os.path.join(ROOT, ".env.example"), encoding="utf-8").read()
         self.assertIn("CONSERVATIVE CEILING, NOT VULTR LIST PRICES", example)
         for side, value in (("IN", "2.00"), ("OUT", "6.00")):
-            self.assertEqual(len(re.findall(rf"(?m)^EIG_PRICE_(?:REASONING_|VISION_)?{side}_PER_MTOK={value}$", example)), 3)
+            self.assertEqual(len(re.findall(rf"(?m)^EIG_PRICE_(?:REASONING_|VISION_|TRIAGE_2_)?{side}_PER_MTOK={value}$",
+                                            example)), 4)
 
     def test_falls_back_to_the_shared_pair(self):
         with mock.patch.dict(os.environ, self.ENV):
@@ -175,6 +176,42 @@ class RolePricesTest(unittest.TestCase):
                                      schema=TAMPER_TRIAGE, schema_name="x", images=[b"png"])
         self.assertAlmostEqual(r.calls[0].cost_usd, 1000 * 2e-6 + 200 * 4e-6)  # shared pair
         self.assertAlmostEqual(v.calls[0].cost_usd, 1200 * 10e-6)             # vision price
+
+
+class SecondVerdictTest(unittest.TestCase):
+    def setUp(self):
+        self.live = case_live_bytes(load_case("t01"), CERT)
+
+    def test_second_verdict_uses_its_own_model_and_price(self):
+        env = {**VULTR_ENV, "MODEL_TRIAGE_2": "other/family", "EIG_PRICE_TRIAGE_2_IN_PER_MTOK": "10",
+               "EIG_PRICE_TRIAGE_2_OUT_PER_MTOK": "10"}
+        fake = FakeTransport(verdict(), verdict(), {"incident_report_md": "r"})
+        with mock.patch.dict(os.environ, env):
+            self.assertEqual(config.routes()["triage_2"].model, "other/family")
+            out = triage.run(CERT, self.live, {}, LLMClient(fake, spend=SpendCap(1.0)), gate="v2")
+        self.assertEqual(out["vote_models"], ["vendor/reasoner", "other/family"])
+        self.assertFalse(out["votes_same_model"])
+        self.assertEqual({s["model"] for s in fake.sent[:2]}, {"vendor/reasoner", "other/family"})
+        by_task = {c.task: c for c in out["calls"]}
+        self.assertAlmostEqual(by_task["tamper_triage#2"].cost_usd, 1200 * 10e-6)   # its own price
+        self.assertEqual(out["decision"]["action"], "ROLLBACK")
+        self.assertEqual(out["decision"]["vote_models"], ["vendor/reasoner", "other/family"])
+
+    def test_without_a_second_model_the_gate_says_so(self):
+        env = {**VULTR_ENV, "MODEL_TRIAGE_2": ""}
+        with mock.patch.dict(os.environ, env):
+            self.assertEqual(config.routes()["triage_2"].model, "vendor/reasoner")
+            out = triage.run(CERT, self.live, {}, LLMClient(FakeTransport(verdict(), verdict(), {"incident_report_md": "r"}),
+                                                            spend=SpendCap(1.0)), gate="v2")
+        self.assertTrue(out["votes_same_model"])
+        self.assertIn("same model", out["decision"]["note"])
+
+    def test_a_failed_second_verdict_escalates(self):
+        env = {**VULTR_ENV, "MODEL_TRIAGE_2": "other/family"}
+        with mock.patch.dict(os.environ, env):
+            out = triage.run(CERT, self.live, {}, LLMClient(FakeTransport(verdict(), TimeoutError("down")),
+                                                            spend=SpendCap(1.0)), gate="v2")
+        self.assertEqual(out["decision"]["action"], "ESCALATE")
 
 
 class SpendCapTest(unittest.TestCase):

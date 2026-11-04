@@ -169,6 +169,8 @@ stays until the real per-token prices are set in step 5.
    docker compose exec orchestrator python scripts/list_models.py
    ```
    Pick `MODEL_REASONING` (and `MODEL_VISION` if any model takes images) and set them in `.env`.
+   Set `MODEL_TRIAGE_2` to a model from a **different family** for the second tamper verdict
+   (same model twice at temperature 0 gives identical verdicts), with `EIG_PRICE_TRIAGE_2_*`.
 4. **Choose the evidence path**: `EIG_EVIDENCE_PATH=vision` if a vision model exists, else `ocr`.
    Both are in the sandbox image, so this is config only.
 5. **Set the prices.** Until list prices are confirmed, use the conservative ceiling from
