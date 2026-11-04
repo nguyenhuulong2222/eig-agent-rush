@@ -13,7 +13,7 @@ contained and logged.
 
 > **Fictional demo data.** Kanaloa County does not exist. No real election, candidate or result is shown.
 
-**Live demo:** `<filled on Nov 3>` · **Demo token for judges:** `<filled on Nov 3>` ·
+**Live demo:** https://104-238-180-117.sslip.io/ · **Demo token for judges:** `<filled on Nov 3>` ·
 **Video:** `<filled on Nov 3>`
 
 ---
@@ -177,50 +177,54 @@ The site resets itself every 15 minutes.
 
 ## Evaluation
 
-> Filled in after the Nov 3 live runs on Vultr Serverless Inference (5 capped runs; see the
-> [Nov 3 checklist](DEPLOY.md#nov-3-checklist-after-credits-are-applied)). Numbers from the
-> earlier Nemotron version are **not** carried over: they were measured on different models.
+Live runs on **Vultr Serverless Inference**, 2026-11-03, on the deployed VM (x86_64,
+`vx1-g-2c-8g-120s`). Models: `qwen3.8-flash-next` for planning, extraction, explanations,
+screenshots (vision) and verdict 1; `glm-5.3-flash` for verdict 2. `reasoning_effort=low`,
+`response_format=json_schema`, temperature 0. One run each: these are **smoke-level results, not
+a benchmark**. Numbers from the earlier Nemotron version are not carried over.
 
-| Scenario | Expected | Got (Vultr model: `<tbd>`) | Latency | Est. cost |
-|---|---|---|---|---|
-| Clean site | NONE, no model call | `<tbd>` | `<tbd>` | `<tbd>` |
-| One number changed (totals broken) | ROLLBACK via RES-003 | `<tbd>` | `<tbd>` | `<tbd>` |
-| Votes moved, totals kept | model verdicts decide | `<tbd>` | `<tbd>` | `<tbd>` |
+| # | Scenario | Expected | Got | Calls | Tokens in / out | Wall time | Est. cost* |
+|---|---|---|---|---|---|---|---|
+| 1 | Clean site | NONE | seal MATCH → **NONE**; 4 language pages, 0 mismatches | 5 | 3,490 / 3,546 | 8.0 s | $0.028 |
+| 2 | One number changed (totals broken) | ROLLBACK via RES-003 | **ROLLBACK** (RES-003); verdicts tampering 0.95 / 0.92; vision read 17,916 vs certified 16,284; approve → restored, re-read, seal **MATCH** | 9 (+0) | 9,387 / 6,455 | 15.1 s + 1.0 s | $0.058 |
+| 3 | Votes moved, totals kept | model verdicts decide | arithmetic passes (ANOM-002 warning only) → **ROLLBACK**, tampering 0.97 / 0.97 | 9 | 9,742 / 6,955 | 16.0 s | $0.061 |
+| 4 | Translation drift (fixtures, 4 languages) | the 3 planted mismatches | **exactly 3/3**, 0 false positives, 0 unverified quotes; fixes written in vi/es/tl | 5 | ≈ 4,050 / 4,600† | ~11 s | $0.036 |
+| 5 | Red-team drill | 5 × CONTAINED | **5/5 CONTAINED**, 0 breaches, both sandboxes removed; ledger chain verified (21 entries) | 0 | 0 | 3.0 s | $0 |
+| V | Votes moved, after the fixes below | two model families, no invented origin | **ROLLBACK**, qwen3.8-flash-next 0.97 + glm-5.3-flash 0.93; both cite "no ticket / no upload record", neither claims who made the change | 9 | 9,847 / 6,286 | 16.0 s | $0.057 |
 
-**Finding from the live runs (run 2):** one verdict said *"the change came from a sandbox job"*.
-That was unsupported: the change metadata said the live file was *read* by a sandbox job, and
-nothing in the input said who changed it. The decision was unaffected (RES-003 alone triggered
-the rollback), but the explanation was wrong. Fix: the metadata now separates
-`evidence_collected_by` from `change_origin: unknown`, and the triage prompt says to cite only
-provided facts and never infer who made a change. It was deployed after the five runs so they all
-used the same prompt, then verified with one more check (`<tbd>`).
+\* **Conservative ceiling, not Vultr list price**: $2.00 per 1M input and $6.00 per 1M output
+tokens for every model, above every Vultr rate seen so far, so the real charge is lower. Output
+tokens include reasoning tokens (about 45–60% of output at `low` effort).
+† Run 4's extraction tokens were not recorded individually; estimated from run 1's identical
+calls, which reproduces the logged cost to within $0.0002.
 
-**Finding from the live runs (run 3): the two verdicts were byte-identical.** Both came from
-`qwen3.8-flash-next` with the same prompt and input at temperature 0: one verdict counted twice,
-not two. Fix: verdict 2 now comes from a different model family (`MODEL_TRIAGE_2`, here
-`glm-5.3-flash`) with its own price variables; the gate is unchanged (both must say tampering at
-≥ 0.8 to propose a rollback, and a failed or invalid verdict escalates to a person). Different
-families reduce correlated errors but still see the same evidence and prompt, so this is
-"two model families", not full independence. Verified after the five runs (`<tbd>`).
+**Total for runs 1–5 + V:** 37 model calls, ≈ 36,500 input / 27,800 output tokens, **$0.24
+estimated at ceiling prices**. A sandboxed check takes 8–16 s end to end (sandbox ~4 s; each
+model call 1–3 s). Judging-period cap: `EIG_DAILY_SPEND_CAP_USD=5.00`, so the run limits (60
+live runs per day, 6 per IP per hour) bind first; 60 tamper checks a day ≈ $4.2 at ceiling prices.
 
-**Finding from the live runs (run 4): CLI spend was not counted by the running server.** The
-translation-drift run ran as a CLI process in the orchestrator container; it logged its usage,
-but the server's spend counter only read the log at start-up, so `/api/status` showed $0.147
-instead of $0.182 until a restart. Fix: the cap re-reads the shared usage log whenever the file
-changes, and each call is logged before its reservation is released.
-| Translation drift (fixtures, 4 languages) | 3 mismatches found | `<tbd>` | `<tbd>` | `<tbd>` |
-| Red-team drill | 5 × CONTAINED | `<tbd>` (5/5 with MOCK) | `<tbd>` | `<tbd>` |
+### What the live runs found (and what changed)
 
-> **Cost column = conservative ceiling, not Vultr list price.** Estimates use $2.00 per 1M input and
-> $6.00 per 1M output tokens for every model: above every Vultr rate seen so far, so the real
-> charge is lower and the $0.50 daily cap can never be exceeded. Replaced by list prices only once
-> confirmed from Vultr.
+1. **Run 2: an unsupported claim.** One verdict said *"the change came from a sandbox job"*. The
+   change metadata said the live file was *read* by a sandbox job; nothing in the input said who
+   changed it. The decision was unaffected (RES-003 alone triggered the rollback), but the
+   explanation was wrong. Fix: the metadata separates `evidence_collected_by` from
+   `change_origin: unknown`, and the triage prompt (v2) says to cite only provided facts and never
+   infer who made a change. Verified in run V.
+2. **Run 3: the two verdicts were byte-identical.** Same model, prompt and input at temperature 0:
+   one verdict counted twice. Fix: verdict 2 comes from a different model family
+   (`MODEL_TRIAGE_2` = `glm-5.3-flash`) with its own price variables; the gate rules are unchanged
+   (both must say tampering at ≥ 0.8; a failed or invalid verdict escalates to a person). Verified
+   in run V (0.97 vs 0.93, different wording). Both still read the same evidence and prompt, so
+   this is "two model families", not full independence.
+3. **Run 4: CLI spend was not counted by the running server.** The translation-drift run ran as a
+   CLI process; the server's spend counter only read the shared usage log at start-up
+   (`/api/status` showed $0.147 instead of $0.182). Fix: the cap re-reads the log whenever it
+   changes, and each call is logged before its reservation is released. Verified after deploy:
+   status $0.182496 = log $0.18250.
 
-What is already measured, offline and with the MOCK provider:
-- 177 unit tests run in the production image.
-- The full smoke suite passes.
-- Sandboxed checks take about 4–5 s each on an arm64 Mac.
-- The red-team drill is 5/5 CONTAINED.
+Also measured offline (MOCK provider): 193 unit tests in the production image, the full smoke
+suite (on the arm64 Mac and on the x86_64 VM), red-team 5/5 CONTAINED.
 
 ## Limitations (honest)
 
@@ -236,8 +240,7 @@ What is already measured, offline and with the MOCK provider:
 - **The seal covers `results.json`.** Page wording is checked by the translation comparison,
   which needs a model, not by the seal.
 - **Shared approver tokens** are not per-person identities. Real deployments need SSO and roles.
-- **Untested on x86_64 until the first deploy.** Everything was built and tested on arm64;
-  `deploy.sh` rebuilds on the VM and runs the smoke suite before reporting success.
+- **Small live sample.** One run per scenario on one model pair; not a benchmark.
 - **Two verdicts, same evidence.** Verdict 2 uses a different model family, but both read the same
   input and prompt; a well-crafted input could mislead both. The deterministic rules and a person
   remain the backstop.
@@ -245,8 +248,6 @@ What is already measured, offline and with the MOCK provider:
   evidence for it (fixed in the prompt and metadata, see Evaluation). Explanations are for the
   official; the gate never depends on them alone.
 - **Costs are ceiling estimates** ($2 / $6 per 1M tokens), not Vultr list prices.
-- **No live model results yet** (see Evaluation). Until Nov 3 the provider is MOCK, and every
-  mock reply is labeled `[MOCK]`.
 
 ## Run it locally
 

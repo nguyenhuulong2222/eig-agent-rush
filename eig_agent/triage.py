@@ -4,7 +4,7 @@ Gate v2 (default; the model is never the only signal for a rollback):
 
   seal matches                                           -> NONE        (no model call)
   mismatch + deterministic BLOCK finding                 -> ROLLBACK    (checker rules alone suffice)
-  mismatch + two independent model verdicts, both
+  mismatch + verdicts from two models (MODEL_REASONING + MODEL_TRIAGE_2), both
     tampering at confidence >= threshold                 -> ROLLBACK
   mismatch + both verdicts legitimate                    -> HUMAN_SIGNOFF
   mismatch + any disagreement, uncertain verdict, low
@@ -89,24 +89,25 @@ def decide(seal: dict, triage: Optional[dict]) -> dict:
             "reason": f"model verdict '{verdict}' at {confidence:.2f} confidence is not enough to act alone."}
 
 
-def decide_v2(seal: dict, votes: list) -> dict:
-    """Self-consistency gate: two independent verdicts must agree before the gate acts."""
+def decide_v2(seal: dict, votes: list, models: Optional[list] = None) -> dict:
+    """Two-model gate: verdicts from two models (normally two model families) must agree before it acts."""
     if seal["match"] or seal["blocking"]:
         return decide(seal, None)
     if any(v is None for v in votes):
         return {"action": "ESCALATE", "reason": "Seal mismatch and at least one model call gave no valid verdict; "
                                                 "a person must decide."}
     labels = [f"{v['verdict']} {v['confidence']:.2f}" for v in votes]
+    who = f" ({' + '.join(models)})" if models else ""
     if all(v["verdict"] == "tampering" and v["confidence"] >= config.TAMPER_CONFIDENCE for v in votes):
         return {"action": "ROLLBACK",
-                "reason": f"Seal mismatch and {len(votes)} independent model verdicts agree on tampering "
+                "reason": f"Seal mismatch and {len(votes)} model verdicts{who} agree on tampering "
                           f"({', '.join(labels)}; threshold {config.TAMPER_CONFIDENCE})."}
     if all(v["verdict"] == "legitimate" for v in votes):
         return {"action": "HUMAN_SIGNOFF",
-                "reason": f"Both model verdicts say legitimate ({', '.join(labels)}); an official must sign off "
+                "reason": f"Both model verdicts{who} say legitimate ({', '.join(labels)}); an official must sign off "
                           "and re-seal."}
     return {"action": "ESCALATE",
-            "reason": f"model verdicts do not agree strongly enough to act ({', '.join(labels)})."}
+            "reason": f"Model verdicts{who} do not agree strongly enough to act ({', '.join(labels)})."}
 
 
 def run(certified_bytes: bytes, live_bytes: bytes, metadata: dict,
@@ -126,7 +127,8 @@ def run(certified_bytes: bytes, live_bytes: bytes, metadata: dict,
         return out
 
     n_votes = 2 if gate == "v2" else 1
-    progress("triage", "running", f"{n_votes} independent call{'s' if n_votes > 1 else ''}")
+    models = [client.routes[VOTE_ROLES[i]].model for i in range(n_votes)]
+    progress("triage", "running", " + ".join(models) if n_votes > 1 else models[0])
     user = build_user_prompt(seal, metadata)
     client.transport  # create the SDK client once, before the worker threads share it
 
@@ -150,7 +152,7 @@ def run(certified_bytes: bytes, live_bytes: bytes, metadata: dict,
     out["triage_error"] = "; ".join(errors) or None
     progress("triage", "error" if errors else "done",
              " · ".join(f"{v['verdict']} {v['confidence']:.2f}" if v else "no valid verdict" for v in out["votes"]))
-    out["decision"] = decide_v2(seal, out["votes"]) if gate == "v2" else decide(seal, out["triage"])
+    out["decision"] = decide_v2(seal, out["votes"], out["vote_models"]) if gate == "v2" else decide(seal, out["triage"])
     if gate == "v2" and n_votes > 1 and not seal["blocking"]:
         out["decision"]["vote_models"] = out["vote_models"]
         if out["votes_same_model"]:

@@ -6,7 +6,7 @@
 Two suites:
   triage   tamper triage (dev T01-T08, held-out H01-H07, held-out 2 H08-H14), run on the
            REASONING role with each candidate model, through gate v1 (one verdict)
-           and/or v2 (two independent verdicts must agree). Scored on the verdict label (v1) and
+           and/or v2 (verdicts from two models must agree). Scored on the verdict label (v1) and
            on the gate decision (both): tampering -> ROLLBACK, legitimate -> HUMAN_SIGNOFF,
            uncertain -> ESCALATE.
   drift    translation-drift scenarios D1-D7, FAST extraction only (no explanation call),

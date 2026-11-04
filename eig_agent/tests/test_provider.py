@@ -196,6 +196,8 @@ class SecondVerdictTest(unittest.TestCase):
         self.assertAlmostEqual(by_task["tamper_triage#2"].cost_usd, 1200 * 10e-6)   # its own price
         self.assertEqual(out["decision"]["action"], "ROLLBACK")
         self.assertEqual(out["decision"]["vote_models"], ["vendor/reasoner", "other/family"])
+        self.assertIn("2 model verdicts (vendor/reasoner + other/family) agree on tampering", out["decision"]["reason"])
+        self.assertNotIn("independent", out["decision"]["reason"])
 
     def test_without_a_second_model_the_gate_says_so(self):
         env = {**VULTR_ENV, "MODEL_TRIAGE_2": ""}
