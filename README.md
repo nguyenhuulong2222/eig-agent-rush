@@ -202,6 +202,12 @@ not two. Fix: verdict 2 now comes from a different model family (`MODEL_TRIAGE_2
 ≥ 0.8 to propose a rollback, and a failed or invalid verdict escalates to a person). Different
 families reduce correlated errors but still see the same evidence and prompt, so this is
 "two model families", not full independence. Verified after the five runs (`<tbd>`).
+
+**Finding from the live runs (run 4): CLI spend was not counted by the running server.** The
+translation-drift run ran as a CLI process in the orchestrator container; it logged its usage,
+but the server's spend counter only read the log at start-up, so `/api/status` showed $0.147
+instead of $0.182 until a restart. Fix: the cap re-reads the shared usage log whenever the file
+changes, and each call is logged before its reservation is released.
 | Translation drift (fixtures, 4 languages) | 3 mismatches found | `<tbd>` | `<tbd>` | `<tbd>` |
 | Red-team drill | 5 × CONTAINED | `<tbd>` (5/5 with MOCK) | `<tbd>` | `<tbd>` |
 

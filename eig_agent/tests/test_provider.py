@@ -239,6 +239,32 @@ class SpendCapTest(unittest.TestCase):
         self.assertAlmostEqual(cap.status()["spent_usd"], 0.0012)  # 1000 in + 200 out at $1/M
         self.assertEqual(cap.reserved, 0.0)
 
+    def test_spend_from_another_process_counts_immediately(self):
+        import datetime as dt
+        today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.jsonl")
+            with mock.patch.dict(os.environ, {"EIG_USAGE_LOG": path}):
+                server = SpendCap(0.5)
+                self.assertEqual(server.status()["spent_usd"], 0.0)
+                with open(path, "a") as fh:  # a CLI run in another process logs a call
+                    fh.write(json.dumps({"ts": today + "T02:00:00+00:00", "cost_usd": 0.03552}) + "\n")
+                self.assertAlmostEqual(server.status()["spent_usd"], 0.03552)
+                with open(path, "a") as fh:
+                    fh.write(json.dumps({"ts": today + "T02:01:00+00:00", "cost_usd": 0.47}) + "\n")
+                self.assertIsNotNone(server.reserve(0.01))  # 0.50552 would pass the 0.50 cap
+
+    def test_own_calls_are_logged_before_the_reservation_is_released(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.jsonl")
+            env = {**VULTR_ENV, "EIG_USAGE_LOG": path}
+            with mock.patch.dict(os.environ, env):
+                cap = SpendCap(1.0)
+                LLMClient(FakeTransport(verdict()), spend=cap).complete_json(
+                    task="t", role="reasoning", system="s", user="u", schema=TAMPER_TRIAGE, schema_name="x")
+                self.assertAlmostEqual(cap.status()["spent_usd"], 0.0012)   # counted once, not twice
+                self.assertEqual(cap.reserved, 0.0)
+
     def test_restart_keeps_todays_spend_from_the_usage_log(self):
         import datetime as dt
         today = dt.datetime.now(dt.timezone.utc).date().isoformat()
