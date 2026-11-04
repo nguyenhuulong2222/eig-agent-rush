@@ -116,7 +116,7 @@ button:disabled { opacity: .5; cursor: progress; }
 .lifecycle li + li::before { content: "→ "; color: var(--muted); }
 .limits li { font-size: .78rem; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
 .proposal.pending { border-color: var(--warn); box-shadow: inset 4px 0 0 var(--warn); }
-.token-row { display: grid; gap: 6px; max-width: 520px; margin-top: 10px; }
+.token-row { display: grid; gap: 6px; max-width: 760px; margin-top: 10px; }
 
 .shots { display: grid; gap: 10px; grid-template-columns: 1fr; }
 .shot { margin: 0; }

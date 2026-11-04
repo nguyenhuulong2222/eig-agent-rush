@@ -40,6 +40,8 @@ COUNTY_DATA = "/srv/county/data"       # county_data volume (live results.json),
 COUNTY_CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; "
               "base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 MAX_BODY = 2048
+# The console's own files: revalidate on every load, so a deploy never leaves a stale app.js/styles.css.
+REVALIDATE = {"Cache-Control": "no-cache"}
 # Upstream content types passed through to the browser (sandbox screenshots and OCR text); anything else
 # is labeled JSON. nosniff is always set, so a mislabeled body is never executed.
 PASS_TYPES = {"image/png": "image/png", "text/plain": "text/plain; charset=utf-8"}
@@ -140,9 +142,9 @@ class WebHandler(BaseHTTPRequestHandler):
         if path == "/healthz":
             return self.send(200, b"ok\n", "text/plain; charset=utf-8")
         if path in ("/", "/index.html"):
-            return self.static("index.html")
+            return self.static("index.html", extra=REVALIDATE)
         if path.startswith("/static/"):
-            return self.static(path[len("/static/"):])
+            return self.static(path[len("/static/"):], extra=REVALIDATE)
         return self.send(404, b"not found\n", "text/plain; charset=utf-8")
 
     def do_HEAD(self):

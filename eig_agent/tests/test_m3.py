@@ -219,6 +219,9 @@ class ApiTest(unittest.TestCase):
         self.assertIn("script-src 'self'", csp)
         self.assertNotIn("unsafe", csp)
         self.assertIn("Fictional demo data", html)
+        self.assertIn("judges: use the demo token from the lablab submission / README", html)
+        with urllib.request.urlopen(self.base + "/static/app.js") as resp:
+            self.assertEqual(resp.headers["Cache-Control"], "no-cache")
         for name in ("app.js", "index.html", "styles.css"):
             with open(os.path.join(demo.PKG, "web", name), encoding="utf-8") as fh:
                 text = fh.read()
