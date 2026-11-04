@@ -189,6 +189,11 @@ The site resets itself every 15 minutes.
 | Translation drift (fixtures, 4 languages) | 3 mismatches found | `<tbd>` | `<tbd>` | `<tbd>` |
 | Red-team drill | 5 × CONTAINED | `<tbd>` (5/5 with MOCK) | `<tbd>` | `<tbd>` |
 
+> **Cost column = conservative ceiling, not Vultr list price.** Estimates use $2.00 per 1M input and
+> $6.00 per 1M output tokens for every model: above every Vultr rate seen so far, so the real
+> charge is lower and the $0.50 daily cap can never be exceeded. Replaced by list prices only once
+> confirmed from Vultr.
+
 What is already measured, offline and with the MOCK provider:
 - 177 unit tests run in the production image.
 - The full smoke suite passes.
@@ -211,6 +216,7 @@ What is already measured, offline and with the MOCK provider:
 - **Shared approver tokens** are not per-person identities. Real deployments need SSO and roles.
 - **Untested on x86_64 until the first deploy.** Everything was built and tested on arm64;
   `deploy.sh` rebuilds on the VM and runs the smoke suite before reporting success.
+- **Costs are ceiling estimates** ($2 / $6 per 1M tokens), not Vultr list prices.
 - **No live model results yet** (see Evaluation). Until Nov 3 the provider is MOCK, and every
   mock reply is labeled `[MOCK]`.
 

@@ -130,6 +130,16 @@ class RolePricesTest(unittest.TestCase):
            "EIG_PRICE_REASONING_IN_PER_MTOK": "", "EIG_PRICE_REASONING_OUT_PER_MTOK": "",
            "EIG_PRICE_VISION_IN_PER_MTOK": "", "EIG_PRICE_VISION_OUT_PER_MTOK": ""}
 
+    def test_unset_prices_use_the_conservative_ceiling(self):
+        clean = {k: v for k, v in os.environ.items() if not k.startswith("EIG_PRICE_")}
+        with mock.patch.dict(os.environ, clean, clear=True):
+            for role in ("reasoning", "vision", "fast", "report"):
+                self.assertEqual(config.prices(role), (2e-6, 6e-6), role)
+        example = open(os.path.join(ROOT, ".env.example"), encoding="utf-8").read()
+        self.assertIn("CONSERVATIVE CEILING, NOT VULTR LIST PRICES", example)
+        for side, value in (("IN", "2.00"), ("OUT", "6.00")):
+            self.assertEqual(len(re.findall(rf"(?m)^EIG_PRICE_(?:REASONING_|VISION_)?{side}_PER_MTOK={value}$", example)), 3)
+
     def test_falls_back_to_the_shared_pair(self):
         with mock.patch.dict(os.environ, self.ENV):
             for role in ("fast", "reasoning", "report", "vision", None):
