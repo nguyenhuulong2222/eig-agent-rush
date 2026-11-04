@@ -52,6 +52,12 @@ case "$code" in 403|503) pass "reject with a wrong token is refused ($code)";; *
 echo "== web: read-only county mirror at /county/"
 code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/county/results.html)
 [ "$code" = 200 ] && pass "mirror serves /county/results.html" || fail "mirror page" "$code"
+for stub in polling-places drop-boxes register registration-status; do
+  code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000/county/$stub.html")
+  [ "$code" = 200 ] || fail "mirror stub $stub.html" "$code"
+done
+links=$(curl -s http://127.0.0.1:8000/county/voter-info.html http://127.0.0.1:8000/county/i18n/voter-info.vi.html | grep -oE 'href="https?://[^"]*\.example[^"]*"' | wc -l | tr -d ' ')
+[ "$links" = 0 ] && pass "mirror pages link to local stubs, no dead .example hrefs" || fail "dead .example hrefs" "$links"
 mirror=$(curl -s http://127.0.0.1:8000/county/data/results.json | sha256)
 origin=$(docker compose exec -T county-site python -c "import hashlib,urllib.request as u;print(hashlib.sha256(u.urlopen('http://127.0.0.1:8080/data/results.json').read()).hexdigest())")
 [ "$mirror" = "$origin" ] && pass "mirror results.json == county-site results.json" || fail "mirror results differ" "$mirror vs $origin"
