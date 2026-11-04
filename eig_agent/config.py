@@ -22,22 +22,34 @@ Env (orchestrator only; the web container and the sandbox never see these):
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
+
+def env(name: str, default: str = "") -> str:
+    """An env value with any inline ` # comment` removed. Compose's env_file keeps the comment when
+    the value itself is empty (`MODEL_VISION=   # note` arrives as "# note"), so a value that starts
+    with '#' counts as empty."""
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    value = re.split(r"\s+#", value, maxsplit=1)[0].strip()
+    return default if value.startswith("#") or not value else value
+
 
 DEFAULT_BASE_URL = "https://api.vultrinference.com/v1"
 MOCK_MODEL = "mock"
 
 
 def provider() -> str:
-    return os.environ.get("EIG_LLM_PROVIDER", "mock").strip().lower() or "mock"
+    return env("EIG_LLM_PROVIDER", "mock").lower() or "mock"
 
 
 def base_url() -> str:
-    return (os.environ.get("VULTR_INFERENCE_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+    return env("VULTR_INFERENCE_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
 
 
 def response_format() -> str:
-    return os.environ.get("EIG_RESPONSE_FORMAT", "json_schema").strip().lower()
+    return env("EIG_RESPONSE_FORMAT", "json_schema").lower()
 
 
 @dataclass(frozen=True)
@@ -53,10 +65,10 @@ def routes() -> dict:
     if provider() == "mock":
         reasoning = fast = report = vision = MOCK_MODEL
     else:
-        reasoning = os.environ.get("MODEL_REASONING", "").strip()
-        fast = os.environ.get("EIG_FAST_MODEL", "").strip() or reasoning
-        report = os.environ.get("EIG_REPORT_MODEL", "").strip() or reasoning
-        vision = os.environ.get("MODEL_VISION", "").strip()
+        reasoning = env("MODEL_REASONING")
+        fast = env("EIG_FAST_MODEL") or reasoning
+        report = env("EIG_REPORT_MODEL") or reasoning
+        vision = env("MODEL_VISION")
     return {
         "fast": Route("fast", fast, max_tokens=1500),
         # Reasoning models spend part of max_tokens on their thinking, so leave room for it.
@@ -81,7 +93,7 @@ GATE = os.environ.get("EIG_GATE", "v2")  # v2: two independent verdicts must agr
 
 def _float_env(name: str, default: float) -> float:
     try:
-        return float(os.environ.get(name, "") or default)
+        return float(env(name) or default)
     except ValueError:
         return default
 

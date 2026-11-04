@@ -1,6 +1,7 @@
 """M2: Vultr provider, MOCK provider, spend cap, model listing, web/orchestrator separation."""
 
 import json
+import re
 import os
 import subprocess
 import sys
@@ -217,6 +218,20 @@ class ModelsTest(unittest.TestCase):
 
 
 class EnvFileTest(unittest.TestCase):
+    def test_compose_style_comment_on_empty_value_counts_as_empty(self):
+        env = {**VULTR_ENV, "MODEL_VISION": "# empty = OCR text from the sandbox goes to MODEL_REASONING",
+               "MODEL_REASONING": "vendor/reasoner   # chosen on Nov 3", "EIG_EVIDENCE_PATH": "auto  # auto | vision"}
+        with mock.patch.dict(os.environ, env):
+            self.assertEqual(config.routes()["vision"].model, "")
+            self.assertFalse(config.has_vision())
+            self.assertEqual(config.routes()["reasoning"].model, "vendor/reasoner")
+            self.assertEqual(config.env("EIG_EVIDENCE_PATH"), "auto")
+            self.assertEqual(config.env("NOT_SET_AT_ALL", "d"), "d")
+
+    def test_example_never_comments_an_empty_value(self):
+        example = open(os.path.join(ROOT, ".env.example"), encoding="utf-8").read()
+        self.assertEqual(re.findall(r"(?m)^[A-Z_]+=[ \t]*#.*$", example), [])
+
     def test_inline_comments_and_quotes(self):
         with tempfile.NamedTemporaryFile("w", suffix=".env", delete=False) as fh:
             fh.write('EIG_T_A=60          # a comment\nEIG_T_B="quoted"\n# EIG_T_C=x\n')

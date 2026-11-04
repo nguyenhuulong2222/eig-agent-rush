@@ -80,8 +80,7 @@ def main(as_json: bool = False) -> int:
         print(f"  {r['id']:<55} {tag:<9} ({r['vision_source']})  fields: {', '.join(r['fields']) or '-'}")
     print(f"Vision-capable: {', '.join(out['vision_models']) or 'none'}")
     print(f"Path: {out['path']}")
-    configured = {"MODEL_REASONING": os.environ.get("MODEL_REASONING", ""),
-                  "MODEL_VISION": os.environ.get("MODEL_VISION", "")}
+    configured = {"MODEL_REASONING": config.env("MODEL_REASONING"), "MODEL_VISION": config.env("MODEL_VISION")}
     ids = {r["id"] for r in out["models"]}
     for name, value in configured.items():
         if value:
