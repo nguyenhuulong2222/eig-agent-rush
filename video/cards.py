@@ -15,6 +15,7 @@ BUILD = HERE / "build"
 REPO_URL = "github.com/nguyenhuulong2222/eig-agent-rush"
 LIVE_URL = "104-238-180-117.sslip.io"
 CREDIT = "Built by Long Nguyen"
+VIDEO_URL = "youtu.be/JUmf_W9aaGk"
 
 CSS = """
 :root { --bg:#f7f8f6; --card:#fff; --ink:#1f2a2e; --muted:#4a5a5e; --line:#c9d3d1; --brand:#0b6e69;
@@ -194,12 +195,13 @@ def slide_limits():
       </div>{foot()}</div>"""
 
 
-def slide_end():
+def slide_end(video=False):
+    vid = f"<br><span style='font-weight:600'>Video: {VIDEO_URL}</span>" if video else ""
     return f"""<div class='slide' style='justify-content:center;background:#0b6e69;color:#fff'>
       <div class='band'></div>
       <h1 style='font-size:84px;color:#fff'>Election Integrity Guard</h1>
       <p class='lead' style='color:#e8f1f0;font-size:40px;margin-top:30px'>
-        <span style='font-weight:600'>{REPO_URL}</span><br><span style='font-weight:600'>https://{LIVE_URL}</span></p>
+        <span style='font-weight:600'>{REPO_URL}</span><br><span style='font-weight:600'>https://{LIVE_URL}</span>{vid}</p>
       <p class='lead' style='color:#e8f1f0;font-size:32px;margin-top:50px'>{CREDIT}</p></div>"""
 
 
@@ -309,7 +311,7 @@ def cmd_deck():
                                                                        ("restored.png", "RESTORED VERIFIED: seal MATCH")]),
               shot_slide("The agent is attacked; nothing gets out", [("redteam.png", "Red-team drill: all attempts contained"),
                                                                        ("ledger.png", "Hash-chained ledger: chain verified")]),
-              slide_arch(), slide_containment(), slide_business(), slide_limits(), slide_end()]
+              slide_arch(), slide_containment(), slide_business(), slide_limits(), slide_end(video=True)]
     doc = page_html("".join(f"<section style='page-break-after:always'>{s}</section>" for s in slides))
     doc = doc.replace("html,body { width:1920px; height:1080px; }", "@page { size:1920px 1080px; margin:0 }")
     with sync_playwright() as pw:

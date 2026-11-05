@@ -13,8 +13,8 @@ contained and logged.
 
 > **Fictional demo data.** Kanaloa County does not exist. No real election, candidate or result is shown.
 
-**Live demo:** https://104-238-180-117.sslip.io/ · **Demo token for judges:** `<filled on Nov 3>` ·
-**Video:** `<filled on Nov 3>`
+**Live demo:** https://104-238-180-117.sslip.io/ · **Demo token for judges:** `QjwjpclI1I6MFCte_TNnU68DPvmpEJ8yaF_HOeA-` ·
+**Video:** https://youtu.be/JUmf_W9aaGk
 
 ---
 
@@ -164,7 +164,7 @@ any edited, deleted, reordered or inserted entry. It records:
 1. Open the live demo (link above). The yellow band reminds you the county is fictional.
 2. **Simulate tamper** ("change one number"), then **Run integrity check**. You get Seal
    MISMATCH, the exact field that changed, the screenshot the sandbox took, and *Rollback proposed*.
-3. In **Human decision**, paste the demo token and **Approve restore**. The orchestrator writes
+3. In **Human decision**, paste the demo token (top of this README) and **Approve restore**. The orchestrator writes
    the certified results, a fresh sandbox re-reads them, and you get **Seal MATCH**.
 4. **Run red-team drill**. You see the hidden injection text, then five attempts: read
    `/app/.env`, print the env, POST to `evil.example`, browser navigation there, POST to a raw IP.
