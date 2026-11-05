@@ -70,6 +70,6 @@ Caption: Who pays? County election offices, state election IT, and civic-tech ve
 
 Caption: Honest limits: fictional data, one VM, containers share the host kernel, and one live run per scenario, not a benchmark. Next: gVisor or Kata for kernel isolation, single sign-on for approvers, sealing page wording too, and a pilot with a real county.
 
-## S15 — Closing · `flow/03.mp4` + end card (GitHub repo URL, live demo URL, "Built by Long Nguyen with Claude Code as coding assistant") · target 11 s
+## S15 — Closing · `flow/03.mp4` + end card (GitHub repo URL, live demo URL, "Built by Long Nguyen") · target 11 s
 
 Caption: Code does the math. AI explains. People make the call. And when the agent is attacked, the blast radius is zero.

@@ -14,7 +14,7 @@ HERE = Path(__file__).parent
 BUILD = HERE / "build"
 REPO_URL = "github.com/nguyenhuulong2222/eig-agent-rush"
 LIVE_URL = "104-238-180-117.sslip.io"
-CREDIT = "Built by Long Nguyen with Claude Code as coding assistant"
+CREDIT = "Built by Long Nguyen"
 
 CSS = """
 :root { --bg:#f7f8f6; --card:#fff; --ink:#1f2a2e; --muted:#4a5a5e; --line:#c9d3d1; --brand:#0b6e69;
