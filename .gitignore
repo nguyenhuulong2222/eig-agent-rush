@@ -34,8 +34,10 @@ var/
 *.swp
 .claude/settings.local.json
 
-# Demo video build output
-/video/
+# Demo video build output (only the scripts and narration are committed)
+/video/*
+!/video/*.py
+!/video/narration.md
 
 # Playwright MCP scratch output
 .playwright-mcp/
